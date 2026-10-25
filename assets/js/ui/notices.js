@@ -2,8 +2,22 @@
 import { on, getState } from '../store.js';
 import { icon, renderIcons } from './icons.js';
 import { dataHora } from '../utils/format.js';
+import { reconectarAgora } from '../market/feed.js';
 
 const area = () => document.getElementById('avisos');
+
+const TEXTOS = {
+  historico: {
+    titulo: 'Cotações simuladas',
+    texto: 'A Binance não respondeu, então o histórico de preços foi simulado a partir de valores de referência. Clientes e operações continuam fictícios como sempre.',
+    botao: 'Recarregar',
+  },
+  aoVivo: {
+    titulo: 'Cotações simuladas',
+    texto: 'A conexão com a Binance caiu. Os preços continuam a partir dos últimos valores reais, simulados, e a Binance volta sozinha quando a conexão for restabelecida.',
+    botao: 'Tentar de novo',
+  },
+};
 
 function desenhar() {
   const { mercado, carregando } = getState();
@@ -11,15 +25,16 @@ function desenhar() {
     area().innerHTML = '';
     return;
   }
+  const t = mercado.historicoFonte === 'simulado' ? TEXTOS.historico : TEXTOS.aoVivo;
   area().innerHTML = `
     <div class="notice notice--warn" role="status">
       <span class="notice__icon">${icon('wifi-off')}</span>
       <div class="notice__body">
-        <p class="notice__title">Cotações simuladas</p>
-        <p class="notice__text">A Binance não respondeu, então o histórico de preços foi simulado a partir de valores de referência. Clientes e operações continuam fictícios como sempre.</p>
+        <p class="notice__title">${t.titulo}</p>
+        <p class="notice__text">${t.texto}</p>
       </div>
-      <button class="btn btn--secondary btn--sm" type="button" data-acao="recarregar">
-        ${icon('refresh-cw')}<span>Tentar de novo</span>
+      <button class="btn btn--secondary btn--sm" type="button" data-acao="reconectar">
+        ${icon('refresh-cw')}<span>${t.botao}</span>
       </button>
     </div>`;
   renderIcons();
@@ -27,23 +42,32 @@ function desenhar() {
 
 export function iniciarAvisos() {
   area().addEventListener('click', (e) => {
-    if (e.target.closest('[data-acao="recarregar"]')) location.reload();
+    if (e.target.closest('[data-acao="reconectar"]')) reconectarAgora();
   });
   on('state:mercado', desenhar);
   on('data:ready', desenhar);
   desenhar();
 }
 
-/** Texto curto da origem dos preços para o topo. */
+/** Texto curto da origem dos preços para o topo. `estado` é o do ponto (data-state). */
 export function textoOrigem(mercado) {
-  if (!mercado.fonte) return { estado: 'idle', texto: 'Carregando cotações…', titulo: 'Baixando o histórico de preços' };
-  if (mercado.fonte === 'simulado') {
-    return { estado: 'simulated', texto: 'Cotações simuladas', titulo: 'Sem conexão com a Binance: preços simulados' };
+  const historico = mercado.historicoEm ? `Histórico baixado em ${dataHora(mercado.historicoEm)}` : '';
+  switch (mercado.estado) {
+    case 'aovivo':
+      return { estado: 'live', texto: 'Binance · ao vivo', titulo: `Cotações reais da Binance, atualizadas a cada segundo. ${historico}` };
+    case 'reconectando':
+      return { estado: 'reconnecting', texto: 'Reconectando…', titulo: 'A conexão com a Binance caiu; tentando de novo' };
+    case 'simulado':
+      return {
+        estado: 'simulated',
+        texto: 'Cotações simuladas',
+        titulo: mercado.historicoFonte === 'simulado'
+          ? 'Sem conexão com a Binance: histórico e preços simulados'
+          : 'Sem conexão com a Binance: preços simulados a partir dos últimos valores reais',
+      };
+    case 'conectando':
+      return { estado: 'idle', texto: 'Conectando…', titulo: `Abrindo a conexão ao vivo com a Binance. ${historico}` };
+    default:
+      return { estado: 'idle', texto: 'Carregando cotações…', titulo: 'Baixando o histórico de preços' };
   }
-  const quando = mercado.historicoEm ? dataHora(mercado.historicoEm) : '';
-  return {
-    estado: 'idle',
-    texto: 'Binance · histórico',
-    titulo: `Histórico real da Binance, baixado em ${quando}`,
-  };
 }

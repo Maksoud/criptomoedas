@@ -12,6 +12,9 @@ import { renderCarregando } from './ui/loading.js';
 import { renderPlaceholder } from './views/placeholder.js';
 import { buscarPagina } from './views/routes.js';
 import { iniciarDados } from './data/loader.js';
+import { iniciarFeed } from './market/feed.js';
+import * as feed from './market/feed.js';
+import { iniciarTicker } from './ui/ticker.js';
 
 const view = document.getElementById('view');
 
@@ -52,6 +55,8 @@ async function iniciar() {
   iniciarTopbar();
   iniciarSidebar();
   iniciarAvisos();
+  iniciarFeed();   // antes da faixa: no data:ready o feed reaplica os últimos preços ao vivo
+  iniciarTicker();
 
   on('route:change', aoMudarRota);
   on('data:ready', desenharTela);
@@ -66,4 +71,4 @@ async function iniciar() {
 iniciar();
 
 // Facilita inspecionar o estado e testar as mutações pelo console durante a demonstração.
-window.criptoops = store;
+window.criptoops = { ...store, feed };

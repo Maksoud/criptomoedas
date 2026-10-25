@@ -43,19 +43,33 @@
     import { evolucaoPatrimonio } from '../assets/js/calc/equity.js';
     import { criarRandom } from '../assets/js/utils/random.js';
     import { diaISO } from '../assets/js/utils/dates.js';
+    import { lerMiniTicker, urlDoFluxo, criarFluxo } from '../assets/js/market/binance.js';
+    import { criarMontador, MAX_VELAS } from '../assets/js/market/candles.js';
+    import { criarSimuladorAoVivo } from '../assets/js/market/simulated.js';
+    import { sparkline, pontosDaSerie } from '../assets/js/ui/sparkline.js';
 
     const grupos = [];
     let atual = null;
     function grupo(nome) { atual = { nome, casos: [] }; grupos.push(atual); }
+    const abertaOculta = document.hidden; // aba em segundo plano: o navegador segura os timers
+    const assincronos = [];
+    function registrar(caso, r) {
+      caso.ok = r === true || r === undefined || (r && r.ok);
+      caso.det = r && r.det;
+    }
     function teste(nome, fn) {
+      const caso = { nome, ok: false, det: null };
+      atual.casos.push(caso);
       try {
         const r = fn();
-        const ok = r === true || r === undefined || (r && r.ok);
-        atual.casos.push({ nome, ok, det: r && r.det });
+        if (r && typeof r.then === 'function') {
+          assincronos.push(r.then((v) => registrar(caso, v), (e) => { caso.det = e.message; }));
+        } else registrar(caso, r);
       } catch (e) {
-        atual.casos.push({ nome, ok: false, det: e.message });
+        caso.det = e.message;
       }
     }
+    const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
     const igual = (a, b, eps = 0.005) => Math.abs(a - b) <= eps;
     const espera = (obtido, esperado) => ({ ok: JSON.stringify(obtido) === JSON.stringify(esperado), det: `obtido ${JSON.stringify(obtido)} · esperado ${JSON.stringify(esperado)}` });
 
@@ -211,6 +225,145 @@
     });
 
     // ---------------------------------------------------------------
+    grupo('Cotações ao vivo (F2)');
+    teste('URL do fluxo combinado com miniTicker em minúsculas', () =>
+      espera(urlDoFluxo(['BTCUSDT', 'ETHUSDT']), 'wss://data-stream.binance.vision/stream?streams=btcusdt@miniTicker/ethusdt@miniTicker'));
+    teste('lerMiniTicker converte a mensagem e calcula a variação de 24 h', () => {
+      const t = lerMiniTicker({ stream: 'btcusdt@miniTicker', data: { e: '24hrMiniTicker', E: 1761300000000, s: 'BTCUSDT', c: '110000.00', o: '100000.00', h: '111000', l: '99000', v: '1', q: '5000000' } });
+      return { ok: t.par === 'BTCUSDT' && t.atual === 110000 && igual(t.variacao24h, 10) && t.volume24h === 5e6 && t.em === 1761300000000, det: JSON.stringify(t) };
+    });
+    teste('lerMiniTicker ignora mensagens que não são miniTicker', () =>
+      lerMiniTicker({ result: null, id: 1 }) === null && lerMiniTicker({ data: { e: '24hrMiniTicker', s: 'X', c: '0' } }) === null);
+
+    // WebSocket falso: cada instância é controlada pelo teste.
+    function criarWSFalso() {
+      const instancias = [];
+      class WSFalso {
+        constructor(url) { this.url = url; this.fechado = false; instancias.push(this); }
+        close() { this.fechado = true; }
+        enviar(dados) { this.onmessage?.({ data: JSON.stringify({ data: { e: '24hrMiniTicker', E: Date.now(), s: 'BTCUSDT', c: '100', o: '90', q: '1', ...dados } }) }); }
+        cair() { this.onclose?.(); }
+      }
+      return { WSFalso, instancias };
+    }
+    const tempos = { esperas: [10, 20, 30, 40], sinalDeVidaMs: 120, primeiraMensagemMs: 100 };
+
+    teste('após 3 falhas seguidas vai para "falhou", continua tentando e volta a "aovivo"', async () => {
+      const { WSFalso, instancias } = criarWSFalso();
+      const estados = [];
+      const precos = [];
+      const fluxo = criarFluxo({ ...tempos, WebSocketImpl: WSFalso, aoPreco: (t) => precos.push(t.atual), aoEstado: (e) => estados.push(e.estado) });
+      fluxo.abrir(['BTCUSDT']);
+      instancias[0].enviar({ c: '101' });
+      instancias[0].cair();          // falha 1
+      await dormir(40);
+      instancias[1].cair();          // falha 2
+      await dormir(60);
+      instancias[2].cair();          // falha 3 → falhou
+      const noSimulado = fluxo.estado;
+      await dormir(70);              // nova tentativa em segundo plano
+      instancias[3].enviar({ c: '102' });
+      const final = fluxo.estado;
+      const falhas = fluxo.falhas;
+      fluxo.fechar();
+      const ok = noSimulado === 'falhou' && final === 'aovivo' && falhas === 0 && precos.join() === '101,102'
+        && estados.join() === 'conectando,aovivo,reconectando,falhou,aovivo,fechado';
+      return { ok, det: `estados ${estados.join(' → ')} · preços ${precos.join()} · ${instancias.length} conexões` };
+    });
+    teste('sem mensagem pelo tempo do sinal de vida → considera desconectado', async () => {
+      const { WSFalso, instancias } = criarWSFalso();
+      const estados = [];
+      const fluxo = criarFluxo({ ...tempos, WebSocketImpl: WSFalso, aoPreco: () => {}, aoEstado: (e) => estados.push(`${e.estado}${e.motivo ? `(${e.motivo})` : ''}`) });
+      fluxo.abrir(['BTCUSDT']);
+      instancias[0].enviar();
+      await dormir(300);
+      const caiu = instancias[0].fechado;
+      fluxo.fechar();
+      return { ok: caiu && estados.includes('reconectando(sem sinal)'), det: estados.join(' → ') };
+    });
+    teste('sem a primeira mensagem a tempo → conta como falha', async () => {
+      const { WSFalso, instancias } = criarWSFalso();
+      const estados = [];
+      const fluxo = criarFluxo({ ...tempos, WebSocketImpl: WSFalso, aoPreco: () => {}, aoEstado: (e) => estados.push(e.estado) });
+      fluxo.abrir(['BTCUSDT']);
+      await dormir(200);
+      fluxo.fechar();
+      return { ok: estados[1] === 'reconectando' && instancias.length >= 2, det: estados.join(' → ') };
+    });
+    teste('trocar as moedas reabre a conexão com os novos pares; os mesmos pares não reabrem', () => {
+      const { WSFalso, instancias } = criarWSFalso();
+      const fluxo = criarFluxo({ ...tempos, WebSocketImpl: WSFalso, aoPreco: () => {} });
+      fluxo.abrir(['BTCUSDT', 'ETHUSDT']);
+      instancias[0].enviar();
+      fluxo.abrir(['ETHUSDT', 'BTCUSDT']);
+      const mesmas = instancias.length;
+      fluxo.abrir(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']);
+      fluxo.fechar();
+      return { ok: mesmas === 1 && instancias.length === 2 && instancias[0].fechado && instancias[1].url.includes('solusdt@miniTicker'), det: instancias.map((i) => i.url).join(' | ') };
+    });
+    teste('mensagens de uma conexão antiga são ignoradas', () => {
+      const { WSFalso, instancias } = criarWSFalso();
+      const precos = [];
+      const fluxo = criarFluxo({ ...tempos, WebSocketImpl: WSFalso, aoPreco: (t) => precos.push(t.atual) });
+      fluxo.abrir(['BTCUSDT']);
+      fluxo.abrir(['ETHUSDT']);
+      instancias[0].enviar({ c: '1' });
+      instancias[1].enviar({ s: 'ETHUSDT', c: '2' });
+      fluxo.fechar();
+      return espera(precos, [2]);
+    });
+
+    teste('velas de 15 s e 1 min: abertura, máxima, mínima, fechamento e volume', () => {
+      const fechadas = [];
+      const m = criarMontador({ aoFechar: (d) => fechadas.push(d) });
+      const t0 = Date.UTC(2026, 9, 24, 12, 0, 0);
+      m.registrar('BTC', 100, t0, 1000);
+      m.registrar('BTC', 105, t0 + 5000, 1010);
+      m.registrar('BTC', 98, t0 + 10000, 1030);
+      m.registrar('BTC', 101, t0 + 16000, 1040); // fecha a vela de 15 s
+      const v15 = fechadas.find((f) => f.intervalo === '15s')?.vela;
+      m.fecharVencidas(t0 + 60000);              // fecha a de 1 min e a 2ª de 15 s
+      const v1m = m.serie('BTC', '1m')[0];
+      const ok = v15 && v15.t === t0 && v15.abertura === 100 && v15.maxima === 105 && v15.minima === 98 && v15.fechamento === 98 && v15.volume === 30
+        && v1m.abertura === 100 && v1m.fechamento === 101 && v1m.maxima === 105 && v1m.minima === 98 && v1m.volume === 40
+        && fechadas.length === 3 && m.aberta('BTC', '1m') === null;
+      return { ok, det: JSON.stringify({ v15, v1m, fechadas: fechadas.length }) };
+    });
+    teste(`no máximo ${MAX_VELAS} velas por moeda e intervalo`, () => {
+      const m = criarMontador();
+      const t0 = Date.UTC(2026, 9, 24);
+      for (let i = 0; i < 1200; i++) m.registrar('ETH', 3000 + i, t0 + i * 15000);
+      m.fecharVencidas(t0 + 1300 * 15000);
+      const s15 = m.serie('ETH', '15s');
+      const s1m = m.serie('ETH', '1m');
+      return { ok: s15.length === MAX_VELAS && s1m.length === 300 && s15.at(-1).fechamento === 4199, det: `15s: ${s15.length} · 1m: ${s1m.length}` };
+    });
+    teste('simulador ao vivo parte dos últimos preços e respeita as casas decimais', async () => {
+      const recebidos = [];
+      const sim = criarSimuladorAoVivo({ intervaloMs: 10, semente: 42, aoPreco: (t) => recebidos.push(t) });
+      sim.iniciar([{ simbolo: 'XRP', par: 'XRPUSDT', volatilidade: 0.12, precoRef: 0.58, precisao: { preco: 4 } }], { XRP: { atual: 2.5, abertura24h: 2.4 } });
+      await dormir(120);
+      sim.parar();
+      const precos = recebidos.map((t) => t.atual);
+      const ok = recebidos.length >= 5 && precos.every((p) => Math.abs(p / 2.5 - 1) < 0.05 && +p.toFixed(4) === p)
+        && recebidos.every((t) => t.par === 'XRPUSDT' && igual(t.variacao24h, (t.atual / 2.4 - 1) * 100, 1e-9));
+      return { ok, det: precos.slice(0, 6).join(', ') };
+    });
+
+    teste('minigráfico: tendência, pontos dentro da altura e série curta', () => {
+      const alta = sparkline([1, 3, 2, 5]);
+      const baixa = sparkline([5, 1]);
+      const curta = sparkline([7]);
+      const pts = pontosDaSerie([1, 3, 2, 5], 32);
+      const ok = alta.includes('data-dir="up"') && baixa.includes('data-dir="down"') && curta.includes('<line')
+        && pts.every(([x, y]) => x >= 0 && x <= 100 && y >= 2 && y <= 30) && pts[0][1] === 30 && pts[3][1] === 2
+        && sparkline([1, 2], { rotulo: 'Patrimônio' }).includes('aria-label="Patrimônio"');
+      return { ok, det: alta };
+    });
+
+    await Promise.all(assincronos);
+
+    // ---------------------------------------------------------------
     const saida = document.getElementById('saida');
     let total = 0, falhas = 0;
     saida.innerHTML = grupos.map((g) => `
@@ -222,7 +375,7 @@
         }).join('')}</ul>
       </section>`).join('');
     document.getElementById('resumo').innerHTML = falhas
-      ? `<b>${falhas} de ${total}</b> testes falharam.`
+      ? `<b>${falhas} de ${total}</b> testes falharam.` + (abertaOculta ? ' A página abriu com a aba em segundo plano, o que atrasa os timers dos testes de conexão: recarregue com a aba visível.' : '')
       : `<b>${total} testes</b> passaram. Histórico de ${st.executadas} operações gerado em ${ms.toFixed(0)} ms.`;
     document.title = `${falhas ? '✗' : '✓'} Testes · CriptoOps`;
     window.resultadoTestes = { total, falhas, grupos };

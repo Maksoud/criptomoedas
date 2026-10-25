@@ -1,6 +1,8 @@
-// Cotações simuladas — parte histórica (a parte ao vivo chega na F2).
-// Usada quando a Binance não responde: passeio aleatório que termina no preço de referência da moeda.
-// A semente depende do dia e da moeda, então o histórico simulado também se repete no mesmo dia.
+// Cotações simuladas, usadas quando a Binance não responde.
+// Histórico: passeio aleatório que termina no preço de referência da moeda; a semente depende do dia
+// e da moeda, então o histórico simulado se repete no mesmo dia.
+// Ao vivo: continua dos últimos preços conhecidos, uma atualização por segundo, no mesmo formato do
+// miniTicker da Binance (assim o resto do sistema não precisa saber de onde veio o preço).
 
 import { criarRandom } from '../utils/random.js';
 import { DURACAO_INTERVALO } from './binance.js';
@@ -54,4 +56,75 @@ export function velasSimuladas({ moeda, intervalo, quantidade, agora = Date.now(
     abertura = fechamento;
   }
   return lista;
+}
+
+// ---------------------------------------------------------------------------
+// Ao vivo
+// ---------------------------------------------------------------------------
+
+/**
+ * Simulador ao vivo. `moedas`: [{ simbolo, par, volatilidade, precoRef, precisao }].
+ * `precos`: { BTC: { atual, abertura24h } } — ponto de partida (últimos preços reais, se houver).
+ */
+export function criarSimuladorAoVivo({ aoPreco, intervaloMs = 1000, semente = Date.now() } = {}) {
+  const rnd = criarRandom(semente >>> 0);
+  const estado = new Map(); // simbolo → { moeda, preco, base, abertura24h, volume24h }
+  let timer = null;
+
+  function preparar(moedas, precos = {}) {
+    const vistos = new Set();
+    for (const m of moedas) {
+      vistos.add(m.simbolo);
+      if (estado.has(m.simbolo)) { estado.get(m.simbolo).moeda = m; continue; }
+      const p = precos[m.simbolo];
+      const preco = p?.atual > 0 ? p.atual : m.precoRef;
+      estado.set(m.simbolo, {
+        moeda: m,
+        preco,
+        base: preco,
+        abertura24h: p?.abertura24h > 0 ? p.abertura24h : preco,
+        volume24h: rnd.entre(5e7, 5e8),
+      });
+    }
+    for (const s of [...estado.keys()]) if (!vistos.has(s)) estado.delete(s);
+  }
+
+  function passo() {
+    const em = Date.now();
+    for (const e of estado.values()) {
+      const { moeda } = e;
+      // Passeio em log-preço com leve volta ao preço inicial (não deriva demais numa apresentação longa).
+      const sigma = (moeda.volatilidade ?? 0.1) / 100;
+      const r = sigma * rnd.normal() - Math.log(e.preco / e.base) * 0.002;
+      const casas = moeda.precisao?.preco ?? 2;
+      const novo = Math.max(10 ** -casas, +(e.preco * Math.exp(r)).toFixed(casas));
+      e.preco = novo;
+      e.volume24h += (e.volume24h * rnd.entre(0.5, 1.5)) / 86400; // ~1 segundo de volume
+      aoPreco({
+        par: moeda.par,
+        atual: novo,
+        abertura24h: e.abertura24h,
+        variacao24h: (novo / e.abertura24h - 1) * 100,
+        maxima: null,
+        minima: null,
+        volume24h: e.volume24h,
+        em,
+      });
+    }
+  }
+
+  return {
+    iniciar(moedas, precos) {
+      preparar(moedas, precos);
+      if (!timer) timer = setInterval(passo, intervaloMs);
+    },
+    /** Troca as moedas sem reiniciar as que continuam. */
+    atualizarMoedas(moedas, precos) { preparar(moedas, precos); },
+    parar() {
+      clearInterval(timer);
+      timer = null;
+      estado.clear();
+    },
+    get ativo() { return timer != null; },
+  };
 }

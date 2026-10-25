@@ -84,12 +84,17 @@
 .ticker__list {
   flex: 1;
   min-width: 0;
-  display: flex;
   height: 100%;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .ticker__list::-webkit-scrollbar { display: none; }
+
+.ticker__track {
+  display: flex;
+  width: max-content;
+  height: 100%;
+}
 
 .ticker__item {
   display: flex;
@@ -99,6 +104,20 @@
   border-right: 1px solid var(--border);
   white-space: nowrap;
 }
+.ticker__item--copia { display: none; } /* só usada na rolagem contínua do celular */
+.ticker__vazio { color: var(--text-muted); }
+
+.ticker__sym { font-weight: 600; color: var(--text); }
+.ticker__price { color: var(--text); font-size: var(--fs-label); }
+.ticker__chg { font-size: var(--fs-label); color: var(--text-muted); }
+.ticker__chg[data-dir="up"] { color: var(--up); }
+.ticker__chg[data-dir="down"] { color: var(--down); }
+
+/* Flash de 600 ms ao mudar o preço (sem animação com prefers-reduced-motion: ver base.css) */
+.ticker__item.is-flash-up { animation: ticker-flash-up 600ms var(--ease); }
+.ticker__item.is-flash-down { animation: ticker-flash-down 600ms var(--ease); }
+@keyframes ticker-flash-up { from { background: var(--up-bg); } to { background: transparent; } }
+@keyframes ticker-flash-down { from { background: var(--down-bg); } to { background: transparent; } }
 
 .ticker__seal {
   flex-shrink: 0;
@@ -282,4 +301,20 @@
   .ticker__seal { padding: 0 var(--space-3); }
   .ticker__seal-full { display: none; }
   .ticker__seal-short { display: inline; }
+
+  /* Rolagem horizontal contínua: a lista aparece duas vezes e anda metade da largura. */
+  .ticker__list { overflow: hidden; }
+  .ticker__item--copia { display: flex; }
+  .ticker__track { animation: ticker-scroll var(--ticker-dur, 30s) linear infinite; }
+  .ticker__list:hover .ticker__track,
+  .ticker__list:active .ticker__track { animation-play-state: paused; }
+  .ticker__item { padding: 0 var(--space-3); }
+}
+
+@keyframes ticker-scroll { to { transform: translateX(-50%); } }
+
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+  .ticker__list { overflow-x: auto; }
+  .ticker__item--copia { display: none; }
+  .ticker__track { animation: none; }
 }

@@ -1,4 +1,5 @@
-// Barra superior: seletor de visão, robô, sino de alertas, tema e faixa de cotações (provisória).
+// Barra superior: seletor de visão, robô, sino de alertas, tema e origem das cotações.
+// A faixa de cotações fica em ui/ticker.js.
 import { getState, setState, on } from '../store.js';
 import { trocarVisao, hashDe } from '../router.js';
 import { paginaInicial } from '../views/routes.js';
@@ -40,7 +41,7 @@ function iniciarSeletorVisao() {
   marcarVisao(getState().visao);
 }
 
-// ---------- Robô ----------
+// ---------- Robô (só guarda o estado; o motor que obedece a ele chega na F4) ----------
 function desenharRobo(robo) {
   const btn = $('robot-toggle');
   const ligado = robo === 'ligado';
@@ -146,18 +147,6 @@ function desenharOrigem(mercado) {
   el.title = titulo;
 }
 
-// ---------- Faixa de cotações (preenchida na F2) ----------
-function desenharTickerProvisorio() {
-  const larguras = [56, 64, 48, 60, 52, 58];
-  $('ticker-list').innerHTML = larguras
-    .map((w) => `
-      <li class="ticker__item" aria-hidden="true">
-        <span class="skeleton" style="width:28px"></span>
-        <span class="skeleton" style="width:${w}px"></span>
-      </li>`)
-    .join('');
-}
-
 export function iniciarTopbar() {
   iniciarSeletorVisao();
   iniciarRobo();
@@ -166,5 +155,4 @@ export function iniciarTopbar() {
   iniciarRestaurar();
   on('state:mercado', desenharOrigem);
   desenharOrigem(getState().mercado);
-  desenharTickerProvisorio();
 }

@@ -24,16 +24,20 @@ function aplicar() {
     );
   }
   // A origem vai antes dos dados: as telas redesenham no `data:ready` e já precisam dela.
-  setState({
-    agora: new Date(),
-    mercado: {
+  // Em "Restaurar dados" o feed já está rodando, então só o histórico é atualizado.
+  const anterior = getState().mercado;
+  const historicoInfo = { historicoFonte: historico.fonte, historicoEm: new Date(historico.baixadoEm) };
+  const mercado = anterior.estado !== 'carregando'
+    ? { ...anterior, ...historicoInfo }
+    : {
+      ...anterior,
+      ...historicoInfo,
       fonte: historico.fonte,
-      conectado: historico.fonte === 'binance' && ticker != null,
-      ultimaMensagem: null,
-      historicoEm: new Date(historico.baixadoEm),
+      estado: historico.fonte === 'simulado' ? 'simulado' : 'conectando',
+      conectado: false,
       erro: historico.erro ?? null,
-    },
-  });
+    };
+  setState({ agora: new Date(), mercado });
   carregarDados({ ...dados, config });
 }
 

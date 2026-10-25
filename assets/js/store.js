@@ -29,7 +29,8 @@ const estado = {
   // Dados
   carregando: true,
   agora: new Date(),
-  mercado: { fonte: null, conectado: false, ultimaMensagem: null, historicoEm: null, erro: null },
+  // fonte: de onde vêm os preços agora; estado: carregando | conectando | aovivo | reconectando | simulado
+  mercado: { fonte: null, estado: 'carregando', conectado: false, ultimaMensagem: null, desde: null, historicoFonte: null, historicoEm: null, erro: null },
   moedas: {},
   precos: {},
   clientes: {},
@@ -303,6 +304,21 @@ export function definirAlvo(compraId, preco, { por = 'admin' } = {}) {
   }
   emit('position:target', { compra, venda });
   return venda;
+}
+
+/**
+ * Atualiza os campos de uma moeda (ligar/desligar, trava, estratégia, parâmetros) e emite `coin:change`.
+ * Ligar ou desligar uma moeda faz o feed reabrir a conexão ao vivo com as moedas ativas.
+ */
+export function atualizarMoeda(simbolo, parcial) {
+  const moeda = estado.moedas[simbolo];
+  if (!moeda) throw new Error(`Moeda desconhecida: ${simbolo}`);
+  const mudou = Object.keys(parcial).filter((k) => JSON.stringify(moeda[k]) !== JSON.stringify(parcial[k]));
+  if (!mudou.length) return moeda;
+  Object.assign(moeda, parcial);
+  if (mudou.includes('ativa')) registrarLog(`${moeda.nome} (${simbolo}) ${moeda.ativa ? 'ligada' : 'desligada'}`);
+  emit('coin:change', { moeda, mudou });
+  return moeda;
 }
 
 /** Atualiza a configuração geral (trava global, perfil, padrões). Fica salva no navegador. */

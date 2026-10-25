@@ -148,6 +148,43 @@
 }
 @keyframes blink { to { visibility: hidden; } }
 
+/* ---------- Monograma de moeda (cor da moeda a 18% + sigla na cor cheia) ---------- */
+.monogram {
+  --coin: var(--text-muted);
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--coin) 18%, transparent);
+  color: var(--coin);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+.monogram--sm { width: 18px; height: 18px; font-size: 10px; }
+
+/* ---------- Minigráfico (sparkline) ---------- */
+.spark {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  color: var(--text-muted);
+}
+.spark[data-dir="up"] { color: var(--up); }
+.spark[data-dir="down"] { color: var(--down); }
+.spark__line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.spark__area { fill: currentColor; opacity: .12; stroke: none; }
+
 /* ---------- Esqueleto de carregamento ---------- */
 .skeleton {
   display: inline-block;
