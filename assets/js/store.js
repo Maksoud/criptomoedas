@@ -15,6 +15,8 @@ export const CONFIG_PADRAO = {
   perfil: 'demo',          // 'demo' | 'padrao'
   reservaPadrao: 20,
   valorOrdemPadrao: { tipo: 'percent', valor: 3 },
+  alertasSom: false,        // som curto nos alertas (canal da regra também precisa estar ligado)
+  alertasNavegador: false,  // notificação do navegador (pede permissão ao ligar)
 };
 
 const estado = {
@@ -49,6 +51,8 @@ const estado = {
 const indice = new Map();
 let seqOrdem = 0;
 let seqPeriodo = 0;
+let seqAlerta = 0;
+const MAX_ALERTAS = 500;
 
 // ---------------------------------------------------------------------------
 // Básico
@@ -104,6 +108,7 @@ export function carregarDados(dados) {
     seqOrdem = Math.max(seqOrdem, Number(o.id.slice(1)) || 0);
   }
   seqPeriodo = estado.periodos.reduce((m, p) => Math.max(m, Number(p.id.slice(1)) || 0), 0);
+  seqAlerta = estado.alertas.reduce((m, a) => Math.max(m, Number(String(a.id).slice(1)) || 0), 0);
   if (!estado.clientes[estado.clienteAtual]) estado.clienteAtual = Object.keys(estado.clientes)[0] ?? null;
 
   estado.carregando = false;
@@ -229,7 +234,7 @@ export function adicionarOrdem(campos) {
 }
 
 /** Executa uma ordem programada (ou MARKET) ao preço informado. */
-export function executarOrdem(id, { preco = null, em = new Date(), motivo = null } = {}) {
+export function executarOrdem(id, { preco = null, em = new Date(), motivo = null, tipo = null } = {}) {
   const ordem = indice.get(id);
   if (!ordem) throw new Error(`Ordem não encontrada: ${id}`);
   if (!estaProgramada(ordem)) throw new Error(`Ordem ${id} não está programada (${ordem.status})`);
@@ -240,6 +245,7 @@ export function executarOrdem(id, { preco = null, em = new Date(), motivo = null
   }
   const taxaPct = estado.moedas[ordem.moeda]?.params?.taxa ?? TAXA_PCT;
   if (preco != null) ordem.preco = preco;
+  if (tipo) ordem.tipo = tipo;
   ordem.total = ordem.preco * ordem.quantidade;
   ordem.taxa = (ordem.total * taxaPct) / 100;
   ordem.status = 'executada';
@@ -288,6 +294,7 @@ export function definirAlvo(compraId, preco, { por = 'admin' } = {}) {
       cancelarOrdem(o.id, 'sistema', { motivo: 'novo alvo definido', status: 'reposicionada' });
     }
   }
+  compra.vendaDinamica = false; // alvo fixo substitui a venda dinâmica
   const venda = adicionarOrdem({
     clienteId: compra.clienteId,
     moeda: compra.moeda,
@@ -304,6 +311,124 @@ export function definirAlvo(compraId, preco, { por = 'admin' } = {}) {
   }
   emit('position:target', { compra, venda });
   return venda;
+}
+
+/**
+ * Liga (ou atualiza) a venda dinâmica de uma posição: sem ordem programada, o robô acompanha o preço e
+ * vende por sinal. `alvo` é só o preço de referência mostrado nas telas.
+ */
+export function definirVendaDinamica(compraId, alvo) {
+  const compra = indice.get(compraId);
+  if (!compra || compra.lado !== 'compra' || compra.status !== 'executada') return null;
+  if (compra.vendaDinamica && compra.alvo === alvo) return compra;
+  const nova = !compra.vendaDinamica;
+  compra.vendaDinamica = true;
+  compra.alvo = alvo;
+  emit('position:dynamic', { compra, nova });
+  return compra;
+}
+
+/** Cancela a venda dinâmica: a posição fica "sem alvo" até o admin definir um novo. */
+export function cancelarVendaDinamica(compraId, por = 'admin') {
+  const compra = indice.get(compraId);
+  if (!compra || !compra.vendaDinamica) return compra ?? null;
+  compra.vendaDinamica = false;
+  compra.alvo = null;
+  if (por === 'admin') {
+    const nome = estado.clientes[compra.clienteId]?.nome ?? compra.clienteId;
+    registrarLog(`Venda dinâmica de ${compra.moeda} de ${nome} cancelada`, 'admin');
+  }
+  emit('position:target', { compra, venda: null });
+  return compra;
+}
+
+/** Marca uma ordem programada como aguardando confirmação de sinal (ou devolve para programada). */
+export function marcarAguardando(id, aguardando = true) {
+  const ordem = indice.get(id);
+  if (!ordem || !estaProgramada(ordem)) return ordem ?? null;
+  const status = aguardando ? 'aguardando-confirmacao' : 'programada';
+  if (ordem.status === status) return ordem;
+  ordem.status = status;
+  emit('order:update', ordem);
+  return ordem;
+}
+
+/** Atualiza campos de um cliente (status, trava, reserva…) e emite `client:change`. */
+export function atualizarCliente(clienteId, parcial, { por = 'admin', registrar = true } = {}) {
+  const cliente = estado.clientes[clienteId];
+  if (!cliente) throw new Error(`Cliente desconhecido: ${clienteId}`);
+  const mudou = Object.keys(parcial).filter((k) => JSON.stringify(cliente[k]) !== JSON.stringify(parcial[k]));
+  if (!mudou.length) return cliente;
+  Object.assign(cliente, parcial);
+  if (registrar && mudou.includes('travaCompras')) {
+    registrarLog(cliente.travaCompras ? `Compras de ${cliente.nome} travadas` : `Compras de ${cliente.nome} destravadas`, por);
+  }
+  emit('client:change', cliente);
+  return cliente;
+}
+
+/** Guarda o estado do motor de um cliente × moeda (telas A2/A4). Emite só quando o texto muda. */
+export function definirEstadoMotor(chave, valor) {
+  const anterior = estado.estadoMotor[chave];
+  estado.estadoMotor[chave] = valor;
+  if (!anterior || anterior.rotulo !== valor.rotulo || JSON.stringify(anterior.pendentes) !== JSON.stringify(valor.pendentes)) {
+    emit('engine:state', { chave, estado: valor });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Alertas
+// ---------------------------------------------------------------------------
+
+/** Registra um alerta disparado e emite `alert:new`. */
+export function adicionarAlerta(campos) {
+  const alerta = {
+    id: 'a' + String(++seqAlerta).padStart(5, '0'),
+    regraId: null,
+    severidade: 'info',
+    titulo: '',
+    texto: '',
+    moeda: null,
+    clienteId: null,
+    data: new Date(),
+    lido: false,
+    lidoCliente: false,
+    paraAdmin: true,
+    paraCliente: false,
+    acaoAutomatica: null,
+    origem: 'ao-vivo',
+    ...campos,
+  };
+  estado.alertas.push(alerta);
+  if (estado.alertas.length > MAX_ALERTAS) estado.alertas.splice(0, estado.alertas.length - MAX_ALERTAS);
+  emit('alert:new', alerta);
+  return alerta;
+}
+
+/** Marca alertas como lidos para o público ('admin' ou 'cliente'). `ids` null = todos os visíveis. */
+export function marcarAlertasLidos(ids = null, publico = 'admin') {
+  const campo = publico === 'cliente' ? 'lidoCliente' : 'lido';
+  const alvo = ids ? new Set(ids) : null;
+  const marcados = [];
+  for (const a of estado.alertas) {
+    if (a[campo] || (alvo && !alvo.has(a.id))) continue;
+    a[campo] = true;
+    marcados.push(a);
+  }
+  if (marcados.length) emit('alert:read', { publico, alertas: marcados });
+  return marcados;
+}
+
+/** Atualiza uma regra de alerta (liga/desliga, limites, canais, ação). Fica salva no navegador. */
+export function atualizarRegraAlerta(id, parcial) {
+  const regra = estado.regrasAlerta[id];
+  if (!regra) throw new Error(`Regra desconhecida: ${id}`);
+  Object.assign(regra, parcial);
+  const salvas = persist.get('regrasAlerta') ?? {};
+  salvas[id] = { ...(salvas[id] ?? {}), ...parcial };
+  persist.set('regrasAlerta', salvas);
+  emit('alert-rule:change', regra);
+  return regra;
 }
 
 /**

@@ -41,7 +41,7 @@ function distanciaHTML(d) {
     </span>`;
 }
 
-const VIVAS = ['cotacao', 'variacao', 'distancia', 'valor'];
+const VIVAS = ['cotacao', 'variacao', 'alvo', 'distancia', 'valor'];
 
 export function montarPosicoes(alvo, { definicao, consulta }) {
   const ctx = criarContexto();
@@ -139,7 +139,11 @@ export function montarPosicoes(alvo, { definicao, consulta }) {
   const mudaram = new Set();
   const vivo = criarAgendador(() => {
     const p = precos();
-    for (const l of linhas) if (mudaram.has(l.moeda)) l.det = detalharPosicao(l, p);
+    for (const l of linhas) {
+      if (!mudaram.has(l.moeda)) continue;
+      if (l.compra.vendaDinamica && !l.venda) l.alvo = l.compra.alvo; // alvo dinâmico acompanha o topo
+      l.det = detalharPosicao(l, p);
+    }
     tabela.atualizarCelulas((l) => mudaram.has(l.moeda), VIVAS);
     tabela.atualizarRodape();
     desenharKpis();
@@ -161,6 +165,11 @@ export function montarPosicoes(alvo, { definicao, consulta }) {
   ctx.on('order:new', (o) => doCliente(o) && refazer.pedir());
   ctx.on('order:canceled', (o) => doCliente(o) && refazer.pedir());
   ctx.on('position:target', ({ compra }) => doCliente(compra) && refazer.pedir());
+  ctx.on('position:dynamic', ({ compra }) => {
+    if (!doCliente(compra) || !linhas.some((l) => l.compra.id === compra.id)) return;
+    mudaram.add(compra.moeda);
+    vivo.pedir();
+  });
 
   criarFiltros(ref('filtros'), {
     valor: filtros, ctx: contextoFiltros(cliente), moedas, comPeriodo: false,

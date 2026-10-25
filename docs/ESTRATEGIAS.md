@@ -61,11 +61,17 @@ O admin aplica um perfil a uma moeda ou a todas. O perfil só preenche os campos
 
 | Parâmetro | Padrão | Demonstração |
 |---|---|---|
-| Spread | 2% | 0,4% |
-| Recuos (A) | 3% | 0,4% |
-| Lucro (B, C, E) | 3% | 0,5% |
-| Lucro mínimo | 0,5% | 0,15% |
+| Spread | 2% | 0,1% |
+| Recuos (A) | 3% | 0,1% |
+| Queda mínima para armar (A) | 2% | 0,12% |
+| Lucro (B) | 3% | 0,25% |
+| Lucro sobre o preço médio (C / E) | 2% / 4% | 0,3% |
+| Lucro mínimo | 0,5% | 0,22% |
+| Máximo de posições | 5 | 10 |
+| Canal (G): velas · largura · tolerância · rompimento | 60 · 1–6% · 0,15% · 0,5% | 20 · 0,05–1% · 0,02% · 0,05% |
 | Confirmação | 2 velas de 1 min | 2 velas de 15 s |
+
+Os valores de Demonstração foram recalibrados na F4 (24–25/10/2026) com as cotações reais: num mercado calmo os preços andam só 0,01% a 0,1% em 3 a 5 minutos, então spreads de 0,4% não geravam operações durante uma apresentação. O lucro mínimo fica acima das taxas de ida e volta (2 × 0,1%), para a demonstração não fechar operações no prejuízo. O máximo de posições sobe para 10 porque o histórico (sempre no perfil Padrão) deixa os clientes perto do limite de 5. Os valores de cada parâmetro ficam nas listas `parametros` de cada estratégia e em `engine/params.js`.
 
 ---
 

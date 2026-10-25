@@ -58,6 +58,16 @@
     import { progressoAteAlvo } from '../assets/js/views/client/posicoes.js';
     import { proximoPeriodo } from '../assets/js/views/client/comissoes.js';
     import { carregarDados, getState, periodoAberto, definirDiaFechamento, apurarPeriodo } from '../assets/js/store.js';
+    import * as loja from '../assets/js/store.js';
+    import { verificarCompra } from '../assets/js/engine/checks.js';
+    import { criarConfirmacao } from '../assets/js/engine/confirm.js';
+    import { ESTRATEGIAS } from '../assets/js/engine/strategies/index.js';
+    import { calcularCanal } from '../assets/js/engine/strategies/canal.js';
+    import { paramsDoPerfil } from '../assets/js/engine/params.js';
+    import { avaliarMoeda, reiniciarMotor, aplicarPerfil } from '../assets/js/engine/engine.js';
+    import { verificarApuracao } from '../assets/js/engine/apuracao.js';
+    import { noEscopo, criarSilencio, variacaoNaJanela, cruzou, regrasPadrao, alertasIniciais } from '../assets/js/alerts/rules.js';
+    import { visivelPara, contarNaoLidos } from '../assets/js/alerts/center.js';
 
     const grupos = [];
     let atual = null;
@@ -487,6 +497,287 @@
         && pts.every(([x, y]) => x >= 0 && x <= 100 && y >= 2 && y <= 30) && pts[0][1] === 30 && pts[3][1] === 2
         && sparkline([1, 2], { rotulo: 'Patrimônio' }).includes('aria-label="Patrimônio"');
       return { ok, det: alta };
+    });
+
+
+    // ---------------------------------------------------------------
+    // Os testes do motor travam a página por alguns segundos: esperam os de conexão (com timers) terminarem.
+    await Promise.all(assincronos);
+    grupo('Motor, estratégias e alertas (F4)');
+    const P = paramsDoPerfil('demo');
+    const moedaT = { simbolo: 'BTC', ativa: true, estrategia: 'spread-fixo', travaCompras: false, params: { ...P, piso: 50, teto: 200 }, precisao: { preco: 2, quantidade: 6, minimo: 5 } };
+    const clienteT = { id: 'cx', status: 'ativo', travaCompras: false, travaPorComissao: false, moedas: ['BTC'] };
+    teste('podeComprar: as 6 verificações, cada uma bloqueia sozinha', () => {
+      const ok = { moeda: moedaT, cliente: clienteT, config: { travaGlobal: false }, robo: 'ligado', banca: { disponivel: 1000 }, ocupadas: 0, preco: 100, valor: 100 };
+      const casos = [
+        [{}, null],
+        [{ moeda: { ...moedaT, ativa: false } }, 1],
+        [{ config: { travaGlobal: true } }, 2],
+        [{ cliente: { ...clienteT, travaPorComissao: true } }, 2],
+        [{ moeda: { ...moedaT, travaCompras: true } }, 2],
+        [{ cliente: { ...clienteT, status: 'pausado' } }, 3],
+        [{ robo: 'pausado' }, 3],
+        [{ valor: 1001 }, 4],
+        [{ ocupadas: P.maxPosicoes }, 5],
+        [{ preco: 40 }, 6],
+        [{ preco: 250 }, 6],
+      ];
+      return espera(casos.map(([mudar]) => verificarCompra({ ...ok, ...mudar }).regraNum), casos.map((c) => c[1]));
+    });
+
+    const velaT = (t, extra = {}) => ({ t, abertura: 1, maxima: 1, minima: 1, fechamento: 1, volume: 1, ...extra });
+    teste('confirmação de 2 velas: pico de 1 vela não confirma; 2 fechamentos seguidos confirmam', () => {
+      const c = criarConfirmacao();
+      const cfg = { ativa: true, modo: 'velas', n: 2, aplicarEm: 'ambos' };
+      const sinal = { tipo: 'compra', chave: 'compra' };
+      const passos = [
+        c.processar({ grupo: 'g', sinais: [sinal], cfg, agora: 1 }).confirmados.length,
+        c.processar({ grupo: 'g', sinais: [sinal], cfg, agora: 2, vela: velaT(0) }).pendentes[0]?.contagem,
+        c.processar({ grupo: 'g', sinais: [], cfg, agora: 3, vela: velaT(15) }).cancelados.length,
+        c.processar({ grupo: 'g', sinais: [sinal], cfg, agora: 4, vela: velaT(30) }).confirmados.length,
+        c.processar({ grupo: 'g', sinais: [sinal], cfg, agora: 5 }).confirmados.length,
+        c.processar({ grupo: 'g', sinais: [sinal], cfg, agora: 6, vela: velaT(45) }).confirmados.length,
+      ];
+      return espera(passos, [0, 1, 1, 0, 0, 1]);
+    });
+    teste('confirmação por tempo e por volume; stop sempre confirma; sem confirmação passa direto', () => {
+      const c = criarConfirmacao();
+      const tempo = { ativa: true, modo: 'tempo', n: 3, aplicarEm: 'ambos' };
+      const s1 = { tipo: 'venda', chave: 'v' };
+      const a = c.processar({ grupo: 't', sinais: [s1], cfg: tempo, agora: 0 }).confirmados.length;
+      const b = c.processar({ grupo: 't', sinais: [], cfg: tempo, agora: 1000 }).cancelados.length;
+      c.processar({ grupo: 't', sinais: [s1], cfg: tempo, agora: 2000 });
+      const d = c.processar({ grupo: 't', sinais: [s1], cfg: tempo, agora: 5000 }).confirmados.length;
+      const vol = { ativa: true, modo: 'volume', n: 1, aplicarEm: 'ambos' };
+      const velas = Array.from({ length: 20 }, (_, i) => velaT(i, { volume: 10 }));
+      const baixa = { ...velaT(20), volume: 5 };
+      const alta = { ...velaT(21), volume: 30 };
+      const baixo = c.processar({ grupo: 'v', sinais: [s1], cfg: vol, agora: 0, vela: baixa, velas: [...velas, baixa] }).confirmados.length;
+      const alto = c.processar({ grupo: 'v', sinais: [s1], cfg: vol, agora: 1, vela: alta, velas: [...velas, alta] }).confirmados.length;
+      const desligada = c.processar({ grupo: 'x', sinais: [s1], cfg: { ativa: false }, agora: 0 }).confirmados.length;
+      const stop = c.processar({ grupo: 'y', sinais: [{ ...s1, stop: true }], cfg: { ativa: false, modo: 'velas', n: 2 }, agora: 0 }).confirmados.length;
+      const soCompra = c.processar({ grupo: 'z', sinais: [s1], cfg: { ativa: true, modo: 'velas', n: 2, aplicarEm: 'compra' }, agora: 0 }).confirmados.length;
+      return espera([a, b, d, baixo, alto, desligada, stop, soCompra], [0, 1, 1, 0, 1, 1, 0, 1]);
+    });
+
+    // Série fixa: roda a estratégia A preço a preço (sem motor), simulando a execução quando o sinal sai.
+    // Valores fixos (não dependem do perfil): queda mínima 0,3%, recuos 0,4%, lucro mínimo 0,15%.
+    const PA = { ...P, quedaMinima: 0.3, recuoCompra: 0.4, recuoVenda: 0.4, lucroMinimo: 0.15 };
+    function rodarA(precos, params = PA) {
+      const A = ESTRATEGIAS['reversao-picos'];
+      let estado = A.estadoInicial();
+      let posicoes = [];
+      const log = [];
+      precos.forEach((preco, i) => {
+        const r = A.avaliar({ preco, agora: i * 1000, estado, params, moeda: moedaT, posicoes });
+        estado = r.estado;
+        for (const sn of r.sinais) {
+          if (sn.tipo === 'compra' && !posicoes.length) {
+            const compra = { id: 'p' + i, preco, quantidade: 1, total: preco, estrategia: 'reversao-picos', vendaDinamica: true };
+            posicoes = [{ compra, venda: null }];
+            estado = A.aoExecutar({ estado, sinal: sn, preco, agora: i * 1000 });
+            log.push(`compra@${preco}`);
+          } else if (sn.tipo === 'venda' && preco >= posicoes[0].compra.preco * (1 + params.lucroMinimo / 100)) {
+            log.push(`venda@${preco}`);
+            posicoes = [];
+            estado = A.aoExecutar({ estado, sinal: sn });
+          }
+        }
+      });
+      return log;
+    }
+    teste('A (reversão de picos): cai, arma, retoma → compra; sobe e recua → venda com lucro', () =>
+      espera(rodarA([100, 99.8, 99.6, 99.5, 99.7, 99.95, 100.2, 100.6, 101, 100.8, 100.55, 100.4]), ['compra@99.95', 'venda@100.55']));
+    teste('A: preço lateral (oscila 0,1%) não gera nenhum sinal', () => espera(rodarA([100, 100.1, 99.95, 100.05, 99.9, 100, 100.1, 99.92]), []));
+    teste('A: queda contínua arma mas não compra (sem retomada)', () => espera(rodarA([100, 99.5, 99, 98.5, 98, 97.5, 97]), []));
+
+    teste('B (spread fixo): monta 3 degraus de 0,1% (Demonstração) e reposiciona quando o preço sobe', () => {
+      const B = ESTRATEGIAS['spread-fixo'];
+      const pode = () => ({ ok: true });
+      const r1 = B.avaliar({ preco: 100, estado: {}, params: P, moeda: moedaT, posicoes: [], ordensProgramadas: [], podeComprar: pode });
+      const precos = r1.acoes.map((a) => a.preco);
+      const ordens = precos.map((p, i) => ({ id: 'b' + i, lado: 'compra', preco: p }));
+      const parado = B.avaliar({ preco: 100.05, estado: {}, params: P, moeda: moedaT, posicoes: [], ordensProgramadas: ordens, podeComprar: pode }).acoes.length;
+      const subiu = B.avaliar({ preco: 100.2, estado: {}, params: P, moeda: moedaT, posicoes: [], ordensProgramadas: ordens, podeComprar: pode }).acoes;
+      const venda = B.aposCompra({ compra: { preco: 100 }, params: P, moeda: moedaT });
+      return {
+        ok: JSON.stringify(precos) === JSON.stringify([99.9, 99.8, 99.7]) && parado === 0
+          && subiu.filter((a) => a.tipo === 'cancelar' && a.status === 'reposicionada').length === 3 && subiu.filter((a) => a.tipo === 'programar').length === 3
+          && venda.tipo === 'limite' && venda.preco === 100.25,
+        det: `${precos} · parado ${parado} · subiu ${subiu.map((a) => a.tipo).join(',')} · venda ${venda.preco}`,
+      };
+    });
+
+    // Canal: oscila entre 99 e 100 com toques nas duas bordas; depois rompe para baixo.
+    const canalVelas = [];
+    for (let i = 0; i < 24; i++) {
+      const topo = i % 6 === 2;
+      const fundo = i % 6 === 5;
+      canalVelas.push({ t: i * 15000, abertura: 99.5, maxima: topo ? 100 : 99.7, minima: fundo ? 99 : 99.3, fechamento: 99.5, volume: 1 });
+    }
+    const PG = { ...P, larguraMin: 0.15, larguraMax: 2, toleranciaToque: 0.05, rompimento: 0.1 };
+    teste('G (canal): suporte, resistência e toques; canal largo demais não confirma', () => {
+      const c = calcularCanal(canalVelas, PG);
+      const largo = calcularCanal(canalVelas.map((v) => ({ ...v, maxima: v.maxima * 1.03 })), PG);
+      return { ok: c.valido && c.suporte === 99 && c.resistencia === 100 && c.toquesBaixo >= 2 && c.toquesAlto >= 2 && !largo.valido, det: JSON.stringify(c) };
+    });
+    teste('G: confirma o canal, compra no fundo, vende no topo; rompimento para baixo vende como stop e pausa', () => {
+      const G = ESTRATEGIAS.canal;
+      const base = { params: PG, moeda: moedaT, velas: canalVelas, duracaoVela: 15000 };
+      const r1 = G.avaliar({ ...base, tipo: 'vela', preco: 99.5, vela: canalVelas.at(-1), posicoes: [], estado: G.estadoInicial() });
+      const r2 = G.avaliar({ ...base, tipo: 'preco', preco: 99.1, posicoes: [], estado: r1.estado });
+      const pos = [{ compra: { id: 'g1', preco: 99.1, quantidade: 1, total: 99.1, estrategia: 'canal', vendaDinamica: true }, venda: null }];
+      const r3 = G.avaliar({ ...base, tipo: 'preco', preco: 99.9, posicoes: pos, estado: r1.estado });
+      const r4 = G.avaliar({ ...base, tipo: 'vela', preco: 98.7, vela: { t: 999000, fechamento: 98.7 }, posicoes: pos, estado: r1.estado });
+      const ok = r1.eventos[0]?.alerta === 'canal-confirmado' && r2.sinais[0]?.tipo === 'compra'
+        && r3.sinais.some((x) => x.tipo === 'venda' && x.motivo === 'topo do canal')
+        && r4.eventos[0]?.alerta === 'canal-rompido' && r4.sinais.some((x) => x.stop && x.compraId === 'g1') && r4.estado.pausaAte > 999000;
+      return { ok, det: JSON.stringify({ e1: r1.eventos, s2: r2.sinais, s3: r3.sinais, e4: r4.eventos, s4: r4.sinais }) };
+    });
+    teste('opcionais C, D, E e F seguem o mesmo contrato', () => ['escalonada', 'grade', 'dca', 'medias'].every((id) => {
+      const e = ESTRATEGIAS[id];
+      const r = e.avaliar({ tipo: 'preco', preco: 100, agora: 0, estado: e.estadoInicial(), params: P, moeda: moedaT, posicoes: [], ordensProgramadas: [], velas: [], valorOrdem: 100, podeComprar: () => ({ ok: true }) });
+      return e.parametros.length > 0 && Array.isArray(r.sinais) && Array.isArray(r.acoes) && !!r.estado && !!e.aposCompra({ compra: { preco: 100 }, params: P, moeda: moedaT });
+    }));
+
+    // Motor de verdade sobre os dados gerados (sem o feed: as cotações são passadas à mão).
+    function prepararMotor(perfil = 'demo') {
+      const d = gerarDados({ historico: hist, agora: new Date(Date.now() - 3600_000), config: { perfil } });
+      d.regrasAlerta = regrasPadrao();
+      d.alertas = [];
+      carregarDados(d);
+      loja.setState({ robo: 'ligado' });
+      reiniciarMotor();
+      return getState();
+    }
+    function passeio(s, segundos, { passo = 0.004, semente = 5, inicio = Date.now() + 1000 } = {}) {
+      const rnd = criarRandom(semente);
+      for (let i = 0; i < segundos; i++) {
+        for (const m of Object.keys(s.precos)) {
+          const p = s.precos[m];
+          p.anterior = p.atual;
+          p.atual *= Math.exp((rnd.proximo() - 0.5) * passo);
+          avaliarMoeda(m, { preco: p.atual, agora: inicio + i * 1000 });
+        }
+      }
+    }
+    const aoVivo = (s) => s.ordens.filter((o) => o.origem === 'ao-vivo');
+    teste('motor (perfil Demonstração, 5 min simulados): surgem compras e vendas e toda venda aponta para uma compra', () => {
+      const s = prepararMotor();
+      const eventos = [];
+      const fora = loja.on('engine:event', (e) => eventos.push(e.alerta));
+      passeio(s, 300);
+      fora();
+      const exec = aoVivo(s).filter((o) => o.status === 'executada');
+      const vendas = exec.filter((o) => o.lado === 'venda');
+      const semCompra = vendas.filter((v) => { const c = loja.ordemPorId(v.compraId); return !c || c.status !== 'executada' || c.lado !== 'compra'; });
+      const val = validarDados(s);
+      return { ok: exec.some((o) => o.lado === 'compra') && vendas.length > 0 && !semCompra.length && val.ok,
+        det: `${exec.length} executadas (${vendas.length} vendas) · eventos ${[...new Set(eventos)].join(',')} · ${val.problemas.slice(0, 3).join(' · ')}` };
+    });
+    teste('nenhuma venda automática abaixo do lucro mínimo (exceto stop, identificado no motivo)', () => {
+      const s = getState();
+      const ruins = aoVivo(s).filter((o) => o.lado === 'venda' && o.status === 'executada').filter((v) => {
+        const c = loja.ordemPorId(v.compraId);
+        const lm = s.moedas[v.moeda].params.lucroMinimo;
+        return v.preco < c.preco * (1 + lm / 100) - 1e-9 && !/stop/.test(v.motivo);
+      });
+      return { ok: !ruins.length, det: ruins.slice(0, 3).map((o) => `${o.id} ${o.motivo}`).join(' · ') };
+    });
+    teste('nenhuma compra ao vivo viola a reserva de banca; sem disponível sai o evento "reserva"', () => {
+      const s = prepararMotor();
+      for (const c of Object.values(s.clientes)) c.reservaPct = 95;
+      const eventos = [];
+      const fora = loja.on('engine:event', (e) => eventos.push(e));
+      passeio(s, 120);
+      fora();
+      const compras = aoVivo(s).filter((o) => o.lado === 'compra');
+      return { ok: compras.length === 0 && eventos.some((e) => e.alerta === 'reserva-banca'), det: `${compras.length} compras` };
+    });
+    teste('robô pausado: nenhuma ordem nova nem execução', () => {
+      const s = prepararMotor();
+      const antes = s.ordens.length;
+      const executadas = s.ordens.filter((o) => o.status === 'executada').length;
+      loja.setState({ robo: 'pausado' });
+      passeio(s, 120);
+      const ok = s.ordens.length === antes && s.ordens.filter((o) => o.status === 'executada').length === executadas;
+      loja.setState({ robo: 'ligado' });
+      return { ok, det: `${s.ordens.length - antes} ordens novas` };
+    });
+    teste('com confirmação de 2 velas, um pico de 1 vela não gera compra (motor, estratégia A)', () => {
+      const s = prepararMotor();
+      const m = 'ETH';
+      s.moedas[m].confirmacao = { ...s.moedas[m].confirmacao, ativa: true, modo: 'velas', n: 2 };
+      const quem = Object.values(s.clientes).filter((c) => c.status === 'ativo' && c.moedas.includes(m) && !c.travaPorComissao).map((c) => c.id);
+      const contar = () => aoVivo(s).filter((o) => o.moeda === m && o.lado === 'compra' && o.tipo === 'MARKET').length;
+      const p0 = s.precos[m].atual;
+      let t = Date.now() + 1000;
+      const vela = (fechamento) => ({ t: (t += 15000), abertura: fechamento, maxima: fechamento, minima: fechamento, fechamento, volume: 1 });
+      const em = (preco, v = null) => avaliarMoeda(m, { preco, vela: v, agora: (t += 1000) });
+      em(p0); em(p0 * 0.995); em(p0 * 0.99, vela(p0 * 0.99));           // cai 1%: arma
+      em(p0 * 0.996);                                                       // retoma 0,6%: sinal pendente
+      const pend = s.estadoMotor[`${quem[0]}:${m}`]?.rotulo ?? '';
+      em(p0 * 0.99, vela(p0 * 0.99));                                       // a vela fecha de volta: cancela
+      const depoisDoPico = contar();
+      em(p0 * 0.996, vela(p0 * 0.996)); em(p0 * 0.997, vela(p0 * 0.997));   // 2 fechamentos seguidos: compra
+      const depois = contar();
+      return { ok: /aguardando confirmação/i.test(pend) && depoisDoPico === 0 && depois > 0, det: `"${pend}" · após o pico ${depoisDoPico} · após 2 velas ${depois} (${quem.length} clientes)` };
+    });
+    teste('aplicar o perfil Padrão a uma moeda muda só ela e não mexe nas ordens executadas', () => {
+      const s = prepararMotor();
+      const executadas = JSON.stringify(s.ordens.filter((o) => o.status === 'executada'));
+      aplicarPerfil('padrao', 'BTC');
+      return s.moedas.BTC.params.spread === 2 && s.moedas.ETH.params.spread === 0.1 && s.moedas.BTC.confirmacao.intervaloSeg === 60
+        && JSON.stringify(s.ordens.filter((o) => o.status === 'executada')) === executadas;
+    });
+
+    teste('alertas: escopo, silêncio, variação na janela e cruzamento de preço alvo', () => {
+      const r = { escopo: { moedas: ['BTC'], clientes: 'todos' } };
+      const sil = criarSilencio();
+      const v = variacaoNaJanela([{ p: 100 }, { p: 104 }, { p: 102 }], 100.5);
+      return noEscopo(r, { moeda: 'BTC' }) && !noEscopo(r, { moeda: 'ETH' })
+        && sil.pode('k', 10, 0) && !sil.pode('k', 10, 5 * 60_000) && sil.pode('k', 10, 11 * 60_000)
+        && v.direcao === 'queda' && igual(v.pct, (1 - 100.5 / 104) * 100, 1e-9)
+        && cruzou(99, 101, 100) === 'subindo' && cruzou(101, 100, 100) === 'descendo' && cruzou(101, 102, 100) === null;
+    });
+    teste('central: o cliente só vê os próprios alertas marcados como visíveis para ele', () => {
+      const a = { paraAdmin: true, paraCliente: true, clienteId: 'c01', severidade: 'critico', lido: false, lidoCliente: false };
+      const b = { paraAdmin: true, paraCliente: false, clienteId: 'c01', severidade: 'info', lido: false };
+      const c = { paraAdmin: false, paraCliente: true, clienteId: 'c02', severidade: 'info', lidoCliente: false };
+      const s = { alertas: [a, b, c], clienteAtual: 'c01', visao: 'cliente' };
+      return visivelPara(a, 'cliente', 'c01') && !visivelPara(b, 'cliente', 'c01') && !visivelPara(c, 'cliente', 'c01') && !visivelPara(c, 'admin', 'c01')
+        && JSON.stringify(contarNaoLidos(s, 'cliente')) === '{"total":1,"criticos":1}' && contarNaoLidos(s, 'admin').total === 2;
+    });
+    teste('alertas iniciais: dos últimos 2 dias, lidos (menos os críticos), com a comissão vencida', () => {
+      const d = gerarDados({ historico: hist, agora });
+      const lista = alertasIniciais({ ...d, regras: regrasPadrao() });
+      const limite = +agora - 48 * 3600_000 - 60_000;
+      return { ok: lista.length >= 5 && lista.every((x) => +x.data >= limite && (x.lido || x.severidade === 'critico'))
+        && lista.some((x) => x.tipo === 'comissao-vencida' && !x.lido), det: `${lista.length} alertas` };
+    });
+
+    teste('apuração automática: virou o dia de fechamento → apura, abre o próximo e emite o fechamento', () => {
+      prepararMotor();
+      const p = periodoAberto('c01');
+      const dia = new Date(`${p.fim}T00:00:00`); dia.setDate(dia.getDate() + 1); dia.setHours(0, 1);
+      const fechados = [];
+      const fora = loja.on('commission:closed', (x) => fechados.push(x));
+      verificarApuracao(dia);
+      fora();
+      const novo = periodoAberto('c01');
+      return { ok: p.status !== 'aberto' && !!novo && novo.inicio > p.fim && fechados.some((x) => x.id === p.id), det: `${p.status} · novo ${novo?.inicio}–${novo?.fim}` };
+    });
+    teste('vencimento sem pagamento trava as compras; marcar como pago destrava e registra no log', () => {
+      const s = getState();
+      const p = s.periodos.find((x) => x.status === 'apurado' && x.comissao > 0 && !s.clientes[x.clienteId].travaPorComissao);
+      if (!p) return { ok: false, det: 'nenhum período apurado com comissão para testar' };
+      const c = s.clientes[p.clienteId];
+      const depois = new Date(`${p.vencimento}T12:00:00`); depois.setDate(depois.getDate() + 1);
+      verificarApuracao(depois);
+      const travado = p.status === 'vencido' && c.travaPorComissao;
+      for (const x of s.periodos) if (x.clienteId === c.id && x.status === 'vencido') loja.marcarPago(x.id, depois);
+      const liberado = !c.travaPorComissao && s.logAdmin.some((l) => l.texto === `Comissão de ${c.nome} paga: compras liberadas`);
+      return { ok: travado && liberado, det: `${p.id} ${p.status} · trava ${c.travaPorComissao}` };
     });
 
     await Promise.all(assincronos);

@@ -17,6 +17,11 @@ import * as feed from './market/feed.js';
 import { iniciarTicker } from './ui/ticker.js';
 import { iniciarSeletorCliente } from './ui/clientpicker.js';
 import { TELAS_CLIENTE } from './views/client/index.js';
+import { iniciarMotor } from './engine/engine.js';
+import * as motor from './engine/engine.js';
+import { iniciarApuracao } from './engine/apuracao.js';
+import { iniciarRegras } from './alerts/rules.js';
+import { iniciarCentral } from './alerts/center.js';
 
 const view = document.getElementById('view');
 const TELAS = { cliente: TELAS_CLIENTE, admin: {} };
@@ -77,6 +82,12 @@ async function iniciar() {
   iniciarFeed();   // antes da faixa: no data:ready o feed reaplica os últimos preços ao vivo
   iniciarTicker();
   iniciarSeletorCliente();
+  // Motor, regras e apuração antes das telas: no data:ready eles acertam ordens e períodos primeiro,
+  // e as telas desenham já com o estado final.
+  iniciarMotor();
+  iniciarRegras();
+  iniciarApuracao();
+  iniciarCentral();
 
   on('route:change', aoMudarRota);
   on('route:query', desenharTela);   // filtros mudados pelo endereço (voltar/avançar, link colado)
@@ -95,4 +106,4 @@ async function iniciar() {
 iniciar();
 
 // Facilita inspecionar o estado e testar as mutações pelo console durante a demonstração.
-window.criptoops = { ...store, feed };
+window.criptoops = { ...store, feed, motor };

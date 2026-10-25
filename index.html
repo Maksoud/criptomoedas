@@ -135,13 +135,10 @@
         <i data-lucide="x" class="icon-20"></i>
       </button>
     </div>
-    <div class="panel__body">
-      <div class="empty">
-        <span class="empty__icon"><i data-lucide="bell" class="icon"></i></span>
-        <p class="empty__title">Nenhum alerta por enquanto</p>
-        <p class="empty__text">Quando o robô começar a operar, os avisos de compra, venda e risco aparecem aqui.</p>
-      </div>
-    </div>
+    <div class="panel__tools" id="alerts-tools"></div>
+    <div class="panel__body" id="alerts-list"></div>
+    <div class="panel__foot" id="alerts-foot" hidden></div>
   </aside>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
 </body>
 </html>

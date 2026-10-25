@@ -102,7 +102,7 @@ Preços reais mudam devagar: com spread de 2–3%, o robô faria poucas operaç�
 
 | Perfil | Spread / recuos típicos | Uso |
 |---|---|---|
-| Demonstração (padrão ao abrir) | 0,3% a 0,6% | Gera operações a cada poucos segundos, somando todos os clientes |
+| Demonstração (padrão ao abrir) | 0,1% (ver [ESTRATEGIAS.md §1.4](ESTRATEGIAS.md#14-perfis-de-parâmetros)) | Gera operações a cada poucos segundos, somando todos os clientes |
 | Padrão | 2% a 3% | Valores realistas, como no briefing |
 
 O perfil só preenche os campos; cada valor continua editável. O histórico de 180 dias é sempre gerado com o perfil Padrão.

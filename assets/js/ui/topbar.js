@@ -41,7 +41,7 @@ function iniciarSeletorVisao() {
   marcarVisao(getState().visao);
 }
 
-// ---------- Robô (só guarda o estado; o motor que obedece a ele chega na F4) ----------
+// ---------- Robô (o motor em engine/engine.js não avalia nada enquanto estiver pausado) ----------
 function desenharRobo(robo) {
   const btn = $('robot-toggle');
   const ligado = robo === 'ligado';
@@ -93,7 +93,7 @@ function iniciarTema() {
   desenharTema();
 }
 
-// ---------- Central de alertas (painel vazio até a F4) ----------
+// ---------- Central de alertas: abre e fecha o painel (conteúdo em alerts/center.js) ----------
 function abrirAlertas() {
   const painel = $('alerts-panel');
   painel.classList.add('is-open');
@@ -102,6 +102,8 @@ function abrirAlertas() {
   $('alerts-toggle').setAttribute('aria-expanded', 'true');
   abrirCamada(fecharAlertas);
   $('alerts-close').focus();
+  // O conteúdo pode ter mudado com o painel fechado (ícones novos).
+  renderIcons();
 }
 
 function fecharAlertas() {

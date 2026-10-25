@@ -8,6 +8,7 @@ import { carregarHistorico, carregarTicker } from '../market/history.js';
 import { carregarDados, setState, emit, getState, CONFIG_PADRAO } from '../store.js';
 import * as persist from '../persist.js';
 import { DEV } from '../utils/env.js';
+import { regrasPadrao, alertasIniciais } from '../alerts/rules.js';
 
 let historico = null;
 let ticker = null;
@@ -15,6 +16,8 @@ let ticker = null;
 function aplicar() {
   const config = { ...CONFIG_PADRAO, ...(persist.get('config') ?? {}) };
   const dados = gerarDados({ historico, ticker, config });
+  dados.regrasAlerta = regrasPadrao(persist.get('regrasAlerta') ?? {});
+  dados.alertas = alertasIniciais({ ...dados, regras: dados.regrasAlerta });
   if (DEV) {
     const r = validarNoConsole(dados);
     console.info(
@@ -53,6 +56,7 @@ export async function iniciarDados() {
 export function restaurarDados() {
   if (!historico) return;
   persist.remove('config');
+  persist.remove('regrasAlerta');
   aplicar();
   emit('data:reset', getState());
 }

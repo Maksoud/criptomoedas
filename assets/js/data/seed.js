@@ -7,7 +7,8 @@
 // Tudo que é fictício usa o PRNG com semente (utils/random.js). Mesmo histórico de preços + mesma
 // semente + mesmo dia = exatamente os mesmos dados.
 
-import { MOEDAS, TAXA_PCT, parametrosDoPerfil } from './coins.js';
+import { MOEDAS, TAXA_PCT } from './coins.js';
+import { parametrosDoPerfil } from '../engine/params.js';
 import { montarClientes } from './clients.js';
 import { criarRandom, SEMENTE_PADRAO } from '../utils/random.js';
 import { diaISO, somarDias, inicioDoDia, fimDoDia, diasEntre, MS_HORA, MS_MIN, MS_DIA } from '../utils/dates.js';
@@ -47,7 +48,7 @@ export function gerarDados({ historico, ticker = null, agora = null, semente = S
       cor: m.cor,
       ativa: m.ativa,
       travaCompras: false,
-      ...parametrosDoPerfil(perfil),
+      ...parametrosDoPerfil(perfil, m.estrategia ?? 'spread-fixo'),
       precisao: { ...(h?.precisao ?? m.precisao) },
       precoRef: m.precoRef,
       volatilidade: m.volatilidade,
