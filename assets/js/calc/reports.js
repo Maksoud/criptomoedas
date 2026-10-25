@@ -7,6 +7,7 @@
 
 import { lucroDaVenda } from './positions.js';
 import { diaISO, paraDiaISO } from '../utils/dates.js';
+import { gerarCSV, numeroCSV, dataCSV, horaCSV } from '../utils/csv.js';
 
 function noIntervalo(dia, inicio, fim) {
   return (!inicio || dia >= inicio) && (!fim || dia <= fim);
@@ -88,13 +89,26 @@ export function relatorio(ordens, { clienteId = null, inicio = null, fim = null,
   };
 }
 
-/** Linhas do relatório em CSV (separador ;, decimal com vírgula, para abrir no Excel em pt-BR). */
-export function relatorioCSV(rel) {
-  const n = (v, c = 2) => v.toFixed(c).replace('.', ',');
-  const cab = ['Data venda', 'Cliente', 'Moeda', 'Quantidade', 'Preço compra', 'Preço venda', 'Custo', 'Venda', 'Lucro bruto', 'Taxas', 'Resultado'];
-  const linhas = rel.linhas.map((l) => [
-    l.dia, l.clienteId, l.moeda, n(l.venda.quantidade, 8), n(l.compra.preco, 8), n(l.venda.preco, 8),
-    n(l.custo), n(l.venda.total), n(l.bruto), n(l.taxas), n(l.liquido),
-  ]);
-  return [cab, ...linhas].map((cols) => cols.join(';')).join('\r\n');
+/**
+ * Relatório em CSV para o Excel em pt-BR: um cabeçalho com cliente, período e moedas,
+ * uma linha por operação fechada (venda + compra de origem), da mais antiga para a mais recente,
+ * e a linha de total. `nomeCliente(id)` troca o id pelo nome; `cabecalho` é uma lista de [rótulo, valor].
+ */
+export function relatorioCSV(rel, { nomeCliente = (id) => id, cabecalho = [] } = {}) {
+  const n = (v) => numeroCSV(v, 2);
+  const q = (v) => numeroCSV(v, 8, { enxugar: true });
+  const p = (v) => numeroCSV(v, v >= 1 ? 2 : 8, { enxugar: v < 1 });
+  const titulos = ['Data da venda', 'Hora', 'Cliente', 'Moeda', 'Quantidade', 'Data da compra', 'Preço de compra (USDT)',
+    'Preço de venda (USDT)', 'Custo (USDT)', 'Venda (USDT)', 'Lucro bruto (USDT)', 'Taxas (USDT)', 'Resultado (USDT)'];
+  const linhas = [...rel.linhas]
+    .sort((a, b) => a.venda.executadaEm - b.venda.executadaEm)
+    .map((l) => [
+      dataCSV(l.venda.executadaEm), horaCSV(l.venda.executadaEm), nomeCliente(l.clienteId), l.moeda,
+      q(l.venda.quantidade), dataCSV(l.compra.executadaEm), p(l.compra.preco), p(l.venda.preco),
+      n(l.custo), n(l.venda.total), n(l.bruto), n(l.taxas), n(l.liquido),
+    ]);
+  const custo = rel.linhas.reduce((s, l) => s + l.custo, 0);
+  const total = ['Total', '', '', '', '', '', '', '', n(custo), n(rel.volumeVendido), n(rel.lucroBruto), n(rel.taxas), n(rel.resultado)];
+  const topo = cabecalho.length ? [...cabecalho, []] : [];
+  return gerarCSV([...topo, titulos, ...linhas, total]);
 }

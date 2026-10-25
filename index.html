@@ -31,6 +31,7 @@
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/layout.css">
   <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/views.css">
   <link rel="stylesheet" href="assets/css/print.css">
 
   <script defer src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
@@ -52,6 +53,17 @@
         <span class="brand__name"><b>Cripto</b>Ops</span>
       </a>
       <span class="badge badge--demo" title="Demonstração — dados fictícios">DEMO</span>
+      <div class="client-picker" id="client-picker">
+        <span class="client-picker__avatar" aria-hidden="true"></span>
+        <span class="client-picker__text" aria-hidden="true">
+          <span class="client-picker__label">Visualizando como</span>
+          <span class="client-picker__name">Carregando…</span>
+        </span>
+        <i data-lucide="chevrons-up-down" class="icon client-picker__chevron"></i>
+        <select class="client-picker__select" id="client-select" aria-label="Visualizando como" disabled>
+          <option>Carregando…</option>
+        </select>
+      </div>
     </div>
 
     <div class="topbar__center">

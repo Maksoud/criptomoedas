@@ -1,12 +1,9 @@
-// Tela provisória: título, resumo dos dados gerados e estado vazio.
-// Cada tela real substitui esta a partir da fase indicada.
+// Tela provisória (visão Administrador até a F5): título, resumo dos dados gerados e estado vazio.
 import { icon } from '../ui/icons.js';
 import { getState } from '../store.js';
-import { resumoBanca } from '../calc/bank.js';
-import { usdt, pct, data } from '../utils/format.js';
+import { data } from '../utils/format.js';
 
 const NOMES_FASE = {
-  F3: 'F3 · Visão do cliente',
   F5: 'F5 · Visão do administrador',
 };
 
@@ -30,21 +27,6 @@ function resumoDosDados() {
     ? `Binance${s.mercado.historicoEm ? ` · ${data(s.mercado.historicoEm)}` : ''}`
     : 'Simulado';
 
-  let doCliente = '';
-  const atual = s.clientes[s.clienteAtual];
-  if (s.visao === 'cliente' && atual) {
-    const b = resumoBanca(atual, s.ordens, s.movimentos, s.precos);
-    doCliente = `
-      <h2 class="summary__title">Visualizando como ${atual.nome}</h2>
-      <dl class="stats">
-        ${item('Patrimônio', usdt(b.patrimonio), pct(b.resultadoPct))}
-        ${item('Caixa', usdt(b.caixa))}
-        ${item('Reserva de banca', usdt(b.reserva), `${atual.reservaPct}% do caixa`)}
-        ${item('Disponível para operar', usdt(b.disponivel))}
-        ${item('Em operação', usdt(b.emOperacao), `${b.posicoes} posições`)}
-      </dl>`;
-  }
-
   return `
     <div class="card summary">
       <h2 class="summary__title">Dados da demonstração</h2>
@@ -55,7 +37,6 @@ function resumoDosDados() {
         ${item('Ordens programadas', programadas.toLocaleString('pt-BR'))}
         ${item('Períodos de apuração', periodos.length, `${contar('aberto')} abertos · ${contar('apurado')} apurados · ${contar('vencido')} vencido`)}
       </dl>
-      ${doCliente}
     </div>`;
 }
 

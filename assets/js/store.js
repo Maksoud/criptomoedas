@@ -3,7 +3,7 @@
 // Os números derivados (caixa, posições, relatórios, comissões) vêm de calc/*, nunca são guardados.
 
 import { TAXA_PCT } from './data/coins.js';
-import { apurar, fimDoPeriodo, vencimentoDe, estaVencido } from './calc/commission.js';
+import { apurar, fimDoPeriodo, vencimentoDe, estaVencido, DIAS_FECHAMENTO } from './calc/commission.js';
 import { estaProgramada } from './calc/positions.js';
 import { diaISO, somarDias, paraDiaISO } from './utils/dates.js';
 import * as persist from './persist.js';
@@ -365,6 +365,29 @@ export function apurarPeriodo(periodoId, agora = new Date()) {
   registrarLog(`Período ${p.inicio} a ${p.fim} de ${cliente.nome} apurado: comissão ${p.comissao.toFixed(2)} USDT`, 'automatico', p.apuradoEm);
   emit('commission:closed', p);
   return p;
+}
+
+/**
+ * Troca o dia de fechamento (10, 20 ou 30). Vale a partir do próximo período: o período aberto
+ * mantém as datas e o novo dia é aplicado quando ele for apurado (apurarPeriodo).
+ * Escolher de novo o dia atual desfaz a troca pendente.
+ */
+export function definirDiaFechamento(clienteId, dia, por = 'cliente') {
+  const cliente = estado.clientes[clienteId];
+  if (!cliente) throw new Error(`Cliente desconhecido: ${clienteId}`);
+  if (!DIAS_FECHAMENTO.includes(dia)) throw new Error('O dia de fechamento precisa ser 10, 20 ou 30');
+  const proximo = dia === cliente.diaFechamento ? null : dia;
+  if (cliente.diaFechamentoProximo === proximo) return cliente;
+  cliente.diaFechamentoProximo = proximo;
+  const quem = por === 'cliente' ? cliente.nome : 'Admin';
+  registrarLog(
+    proximo
+      ? `${quem}: fechamento de ${cliente.nome} passa para o dia ${dia} a partir do próximo período`
+      : `${quem}: fechamento de ${cliente.nome} continua no dia ${cliente.diaFechamento}`,
+    por,
+  );
+  emit('client:change', cliente);
+  return cliente;
 }
 
 /** Marca uma comissão como paga. Sem outro período vencido, a trava por comissão sai sozinha. */

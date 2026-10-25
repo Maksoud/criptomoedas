@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { getState, setState, on } from './store.js';
 import * as persist from './persist.js';
-import { iniciarRoteador, hashDe } from './router.js';
+import { iniciarRoteador, hashDe, lerConsulta } from './router.js';
 import { iniciarScrim } from './ui/scrim.js';
 import { iniciarTopbar } from './ui/topbar.js';
 import { iniciarSidebar } from './ui/sidebar.js';
@@ -15,8 +15,12 @@ import { iniciarDados } from './data/loader.js';
 import { iniciarFeed } from './market/feed.js';
 import * as feed from './market/feed.js';
 import { iniciarTicker } from './ui/ticker.js';
+import { iniciarSeletorCliente } from './ui/clientpicker.js';
+import { TELAS_CLIENTE } from './views/client/index.js';
 
 const view = document.getElementById('view');
+const TELAS = { cliente: TELAS_CLIENTE, admin: {} };
+let telaAtual = null; // contexto da tela montada (assinaturas, gráficos), desfeito ao trocar
 
 function carregarPreferencias() {
   const tema = persist.get('tema');
@@ -36,8 +40,23 @@ function desenharTela() {
   const rota = getState().rota;
   if (!rota) return;
   const definicao = buscarPagina(rota.visao, rota.pagina);
-  if (getState().carregando) renderCarregando(view, definicao);
-  else renderPlaceholder(view, definicao);
+  telaAtual?.destruir();
+  telaAtual = null;
+  if (getState().carregando) {
+    renderCarregando(view, definicao);
+  } else {
+    const montar = TELAS[rota.visao]?.[rota.pagina];
+    if (montar) {
+      try {
+        telaAtual = montar(view, { definicao, consulta: lerConsulta() });
+      } catch (erro) {
+        console.error(`[tela] erro ao montar ${rota.visao}/${rota.pagina}`, erro);
+        renderPlaceholder(view, definicao);
+      }
+    } else {
+      renderPlaceholder(view, definicao);
+    }
+  }
   renderIcons();
 }
 
@@ -57,10 +76,15 @@ async function iniciar() {
   iniciarAvisos();
   iniciarFeed();   // antes da faixa: no data:ready o feed reaplica os últimos preços ao vivo
   iniciarTicker();
+  iniciarSeletorCliente();
 
   on('route:change', aoMudarRota);
+  on('route:query', desenharTela);   // filtros mudados pelo endereço (voltar/avançar, link colado)
   on('data:ready', desenharTela);
-  on('state:clienteAtual', (id) => persist.set('clienteAtual', id));
+  on('state:clienteAtual', (id) => {
+    persist.set('clienteAtual', id);
+    if (getState().visao === 'cliente') desenharTela();
+  });
 
   iniciarRoteador(persist.get('rota'));
   renderIcons();

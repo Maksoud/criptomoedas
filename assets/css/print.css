@@ -1,20 +1,92 @@
-/* Impressão do relatório (detalhada na F3). Por ora, esconde a moldura da página. */
+/* Impressão (relatório C4 em A4 retrato, margens de 16 mm): fundo branco, sem menu nem topo,
+   logo preto + âmbar no cabeçalho e selo "dados fictícios" no rodapé de cada página. */
 @media print {
-  :root {
+  :root,
+  :root[data-theme="dark"],
+  :root[data-theme="light"] {
     color-scheme: light;
-    --bg: #FFFFFF;
-    --surface: #FFFFFF;
+    --bg: var(--print-bg);
+    --surface: var(--print-bg);
     --surface-2: #F1F5F9;
-    --border: #DCE2EC;
-    --text: #0F172A;
-    --text-muted: #55627A;
-    --up: #15803D;
-    --down: #C81E1E;
+    --border: var(--print-border);
+    --text: var(--print-text);
+    --text-muted: var(--print-muted);
+    --text-faint: var(--print-muted);
+    --brand: var(--print-brand);
+    --brand-text: #9A6A0B;
+    --brand-soft: rgba(217, 154, 30, .10);
+    --up: var(--print-up);
+    --up-bg: rgba(21, 128, 61, .10);
+    --down: var(--print-down);
+    --down-bg: rgba(200, 30, 30, .08);
+    --info: #0369A1;
+    --info-bg: rgba(3, 105, 161, .08);
+    --warn: #B45309;
+    --warn-bg: rgba(180, 83, 9, .10);
+    --shadow: none;
+    --gutter: 10px;
   }
 
-  @page { size: A4 portrait; margin: 16mm; }
+  @page {
+    size: A4 portrait;
+    margin: 16mm 16mm 20mm;
+    @bottom-left {
+      content: "CriptoOps · Demonstração — dados fictícios";
+      font: 9px "Inter", system-ui, sans-serif;
+      color: #55627A;
+    }
+    @bottom-right {
+      content: "Página " counter(page) " de " counter(pages);
+      font: 9px "Inter", system-ui, sans-serif;
+      color: #55627A;
+    }
+  }
 
-  .admin-bar, .topbar, .ticker, .sidebar, .scrim, .panel { display: none !important; }
-  .content { margin: 0 !important; padding: 0 !important; }
-  .card { box-shadow: none; }
+  html, body { background: #FFFFFF !important; }
+  body { font-size: 11px; line-height: 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .admin-bar, .topbar, .ticker, .sidebar, .scrim, .panel, .notices, .no-print { display: none !important; }
+  .content, [data-sidebar="collapsed"] .content { margin: 0 !important; padding: 0 !important; }
+  .page { max-width: none; gap: 10px; }
+  .page > [class*="span-"] { grid-column: 1 / -1; }
+  .card { box-shadow: none; padding: 10px 12px; break-inside: avoid; }
+  .print-only { display: flex; }
+
+  /* Relatório: o cabeçalho da página dá lugar ao cabeçalho com o logo. */
+  .report > .page-head { display: none; }
+  .report-head { border-color: var(--border); }
+  .report-head__brand { color: #0F172A; }
+  .report-head__brand .brand__mark { color: var(--print-brand); }
+  .report-meta { grid-template-columns: repeat(4, 1fr); }
+  .report-stats { grid-template-columns: repeat(4, 1fr); }
+  .report-stats .stat { padding: 6px 10px; }
+  .report-stats .stat__value { font-size: 13px; line-height: 18px; }
+  .report-stats .stat--main .stat__value { font-size: 14px; }
+  .report-stats .stat__extra { font-size: 9px; line-height: 12px; }
+
+  /* Tabelas: tudo visível, sem rolagem nem cabeçalho fixo. */
+  .table-wrap { max-height: none !important; overflow: visible !important; }
+  .table { font-size: 10px; }
+  .table th, .table td { height: 22px; padding: 0 6px; }
+  .table td.num { font-size: 10px; }
+  .table thead th, .table tfoot th, .table tfoot td { position: static; }
+  .table thead { display: table-header-group; }
+  .table tr { break-inside: avoid; }
+  .pager { display: none !important; }
+  .th-sort__icon { display: none; }
+  .monogram { width: 16px; height: 16px; font-size: 8px; }
+  .section .table-card { margin: 0 -12px -10px; }
+
+  .chart-box, .chart-box--md, .chart-box--lg { height: 200px; }
+  .report-chart { break-inside: avoid; }
+
+  /* Selo e data de emissão no fim do relatório (o selo também sai na margem de cada página). */
+  .print-footer {
+    display: flex;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    font-size: 9px;
+    color: #55627A;
+    break-inside: avoid;
+  }
 }

@@ -53,6 +53,11 @@ export function preco(v) {
 }
 
 function paraData(d) {
+  // 'AAAA-MM-DD' é um dia do calendário local (new Date('2026-10-24') seria meia-noite UTC = dia 23 no Brasil).
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const [a, m, dia] = d.split('-').map(Number);
+    return new Date(a, m - 1, dia);
+  }
   const data = d instanceof Date ? d : new Date(d);
   return Number.isNaN(data.getTime()) ? null : data;
 }
@@ -66,12 +71,41 @@ export function data(d) {
   return `${dois(x.getDate())}/${dois(x.getMonth() + 1)}/${x.getFullYear()}`;
 }
 
+/** 24/10 */
+export function dataCurta(d) {
+  const x = paraData(d);
+  if (!x) return TRACO;
+  return `${dois(x.getDate())}/${dois(x.getMonth() + 1)}`;
+}
+
+/** Intervalo de datas: "11/10/2026 a 10/11/2026". */
+export function intervalo(de, ate) {
+  return `${data(de)} a ${data(ate)}`;
+}
+
 /** 24/10 14:32 — o ano aparece só se for diferente do atual. */
 export function dataHora(d, agora = new Date()) {
   const x = paraData(d);
   if (!x) return TRACO;
   const ano = x.getFullYear() !== agora.getFullYear() ? `/${x.getFullYear()}` : '';
   return `${dois(x.getDate())}/${dois(x.getMonth() + 1)}${ano} ${dois(x.getHours())}:${dois(x.getMinutes())}`;
+}
+
+/** Percentual sem sinal (distâncias, fatias): "2,31%". */
+export function pctSimples(v, { casas = 2 } = {}) {
+  if (!valido(v)) return TRACO;
+  return nf({ minimumFractionDigits: casas, maximumFractionDigits: casas }).format(Math.abs(v)) + '%';
+}
+
+/** Valor curto para eixos de gráfico: "12,3 mil", "1,2 mi". */
+export function compacto(v) {
+  if (!valido(v)) return TRACO;
+  return comSinal(v, nf({ notation: 'compact', maximumFractionDigits: 1 }));
+}
+
+/** Contagem com plural: plural(1, 'venda') → "1 venda"; plural(3, 'posição', 'posições'). */
+export function plural(n, um, varios = um + 's') {
+  return `${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}`;
 }
 
 /** Seta + percentual, para alta/baixa: "▲ +2,31%" / "▼ −0,84%". */

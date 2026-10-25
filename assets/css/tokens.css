@@ -40,6 +40,15 @@
   --chart-6: #FB923C;
   --chart-7: #94A3B8;
 
+  /* Impressão do relatório (papel, sempre claro; os gráficos leem estes valores ao imprimir) */
+  --print-bg: #FFFFFF;
+  --print-text: #0F172A;
+  --print-muted: #55627A;
+  --print-border: #DCE2EC;
+  --print-brand: #D99A1E;
+  --print-up: #15803D;
+  --print-down: #C81E1E;
+
   /* Tipografia */
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;

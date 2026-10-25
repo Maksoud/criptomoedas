@@ -47,6 +47,17 @@
     import { criarMontador, MAX_VELAS } from '../assets/js/market/candles.js';
     import { criarSimuladorAoVivo } from '../assets/js/market/simulated.js';
     import { sparkline, pontosDaSerie } from '../assets/js/ui/sparkline.js';
+    import { relatorioCSV } from '../assets/js/calc/reports.js';
+    import { posicoesAbertasEm } from '../assets/js/calc/positions.js';
+    import { apurar } from '../assets/js/calc/commission.js';
+    import { numeroCSV } from '../assets/js/utils/csv.js';
+    import { data, intervalo } from '../assets/js/utils/format.js';
+    import { intervaloDoPreset, lerFiltros, consultaDosFiltros } from '../assets/js/ui/filters.js';
+    import { textoConsulta } from '../assets/js/router.js';
+    import { fatiasDaBanca } from '../assets/js/ui/bankbar.js';
+    import { progressoAteAlvo } from '../assets/js/views/client/posicoes.js';
+    import { proximoPeriodo } from '../assets/js/views/client/comissoes.js';
+    import { carregarDados, getState, periodoAberto, definirDiaFechamento, apurarPeriodo } from '../assets/js/store.js';
 
     const grupos = [];
     let atual = null;
@@ -222,6 +233,123 @@
       const precosDia = Object.fromEntries(Object.entries(dados.precos).map(([s, p]) => [s, { atual: p.diario.at(-1).fechamento }]));
       const b = resumoBanca(c, dados.ordens, dados.movimentos, precosDia);
       return { ok: igual(serie.at(-1).patrimonio, b.patrimonio, 0.05) && serie.every((p) => p.saldoLivre >= -0.01), det: `${serie.at(-1).patrimonio.toFixed(2)} vs ${b.patrimonio.toFixed(2)} (${serie.length} dias)` };
+    });
+
+    // ---------------------------------------------------------------
+    grupo('Visão do cliente (F3)');
+    const ctxF = { hoje: '2026-10-24', inicioContrato: '2026-04-27', periodos: [
+      { status: 'aberto', inicio: '2026-10-11', fim: '2026-11-10' },
+      { status: 'pago', inicio: '2026-09-11', fim: '2026-10-10' },
+    ] };
+    teste('presets de período: hoje, 7 e 30 dias, mês, desde o início, período atual e anterior', () => espera(
+      ['hoje', '7d', '30d', 'mes', 'inicio', 'periodo', 'anterior'].map((p) => intervaloDoPreset(p, ctxF)),
+      [{ de: '2026-10-24', ate: '2026-10-24' }, { de: '2026-10-18', ate: '2026-10-24' }, { de: '2026-09-25', ate: '2026-10-24' },
+        { de: '2026-10-01', ate: '2026-10-24' }, { de: '2026-04-27', ate: '2026-10-24' },
+        { de: '2026-10-11', ate: '2026-11-10' }, { de: '2026-09-11', ate: '2026-10-10' }]));
+    teste('sem período aberto, o preset "período atual" não se aplica', () => intervaloDoPreset('periodo', { ...ctxF, periodos: [ctxF.periodos[1]] }) === null);
+    teste('filtros da URL: datas, moedas válidas e lado; preset detectado', () => {
+      const f = lerFiltros(new URLSearchParams('de=2026-10-11&ate=2026-11-10&moedas=BTC,XYZ,eth&lado=venda'), { ctx: ctxF, moedas: ['BTC', 'ETH', 'SOL'], comLado: true });
+      return espera(f, { preset: 'periodo', de: '2026-10-11', ate: '2026-11-10', moedas: ['BTC', 'ETH'], lado: 'venda' });
+    });
+    teste('filtros da URL: data inválida usa o padrão; datas invertidas são trocadas; todas as moedas = sem filtro', () => {
+      const a = lerFiltros(new URLSearchParams('de=2026-02-30&ate=2026-10-24'), { padrao: '7d', ctx: ctxF, moedas: ['BTC'] });
+      const b = lerFiltros(new URLSearchParams('de=2026-10-20&ate=2026-10-01&moedas=BTC,ETH'), { ctx: ctxF, moedas: ['BTC', 'ETH'] });
+      return a.preset === '7d' && a.de === '2026-10-18' && b.de === '2026-10-01' && b.ate === '2026-10-20' && b.preset === 'personalizado' && b.moedas.length === 0;
+    });
+    teste('filtros → URL (#/cliente/relatorio?de=…&ate=…&moedas=BTC,ETH)', () =>
+      espera(textoConsulta(consultaDosFiltros({ de: '2026-10-01', ate: '2026-10-24', moedas: ['BTC', 'ETH'], lado: '' })), 'de=2026-10-01&ate=2026-10-24&moedas=BTC,ETH'));
+    teste('datas ISO formatadas no dia local (sem voltar um dia pelo fuso)', () => data('2026-10-24') === '24/10/2026' && intervalo('2026-10-11', '2026-11-10') === '11/10/2026 a 10/11/2026');
+
+    teste('CSV para o Excel pt-BR: BOM, separador ;, decimal com vírgula, aspas e CRLF', () => {
+      const rel = relatorio(dados.ordens, { clienteId: 'c01' });
+      const csv = relatorioCSV(rel, { cabecalho: [['Cliente', 'Nome; "com" aspas']] });
+      const linhas = csv.split('\r\n');
+      const dadosLinha = linhas[3].split(';');
+      const ok = csv.charCodeAt(0) === 0xFEFF && linhas[0] === '﻿Cliente;"Nome; ""com"" aspas"'
+        && linhas[2].startsWith('Data da venda;') && /^\d{2}\/\d{2}\/\d{4}$/.test(dadosLinha[0])
+        && /^-?\d+,\d{2}$/.test(dadosLinha.at(-1)) && !csv.includes('−') && linhas.at(-2).startsWith('Total;')
+        && linhas.length === rel.linhas.length + 5;
+      return { ok, det: linhas.slice(0, 4).join(' | ') };
+    });
+    teste('números do CSV: sem milhar, hífen como sinal, −0 vira 0, quantidade sem zeros à direita', () =>
+      numeroCSV(12345.678) === '12345,68' && numeroCSV(-3.5) === '-3,50' && numeroCSV(-0.001) === '0,00'
+      && numeroCSV(0.01230000, 8, { enxugar: true }) === '0,0123' && numeroCSV(2, 8, { enxugar: true }) === '2');
+
+    const fechados = dados.periodos.filter((p) => p.status !== 'aberto');
+    teste(`C4 no intervalo exato de cada período = resultado do período em C5 (${fechados.length} períodos)`, () => {
+      const erros = fechados.filter((p) => {
+        const r = relatorio(dados.ordens, { clienteId: p.clienteId, inicio: p.inicio, fim: p.fim }).resultado;
+        return Math.abs(Math.round(r * 100) / 100 - p.resultado) > 0.006;
+      });
+      return { ok: erros.length === 0, det: erros.slice(0, 3).map((p) => `${p.id} ${p.resultado}`).join(' · ') };
+    });
+    teste('período com prejuízo: comissão 0,00 e já nasce pago', () => {
+      const comPrejuizo = fechados.filter((p) => p.resultado < 0);
+      const cliente = dados.clientes.c01;
+      const simulado = apurar({ ...fechados[0], status: 'aberto', clienteId: 'c01', inicio: '2026-10-01', fim: '2026-10-10' },
+        [{ id: 'x1', clienteId: 'c01', moeda: 'BTC', lado: 'compra', status: 'executada', preco: 100, quantidade: 1, total: 100, taxa: 0.1, executadaEm: new Date(2026, 9, 2) },
+          { id: 'x2', clienteId: 'c01', moeda: 'BTC', lado: 'venda', status: 'executada', preco: 90, quantidade: 1, total: 90, taxa: 0.09, compraId: 'x1', executadaEm: new Date(2026, 9, 5) }],
+        cliente);
+      return { ok: comPrejuizo.every((p) => p.comissao === 0 && p.status === 'pago') && simulado.comissao === 0 && simulado.status === 'pago' && simulado.resultado < 0,
+        det: `${comPrejuizo.length} períodos com prejuízo no histórico; simulado ${simulado.resultado}` };
+    });
+    teste('posições em aberto não alteram o resultado do período', () => {
+      const p = dados.periodos.find((x) => x.clienteId === 'c01' && x.status === 'aberto');
+      const antes = relatorio(dados.ordens, { clienteId: 'c01', inicio: p.inicio, fim: p.fim }).resultado;
+      const compra = { id: 'z1', clienteId: 'c01', moeda: 'BTC', lado: 'compra', status: 'executada', preco: 1, quantidade: 1000, total: 1000, taxa: 1, executadaEm: new Date(`${p.inicio}T12:00:00`) };
+      const depois = relatorio([...dados.ordens, compra], { clienteId: 'c01', inicio: p.inicio, fim: p.fim }).resultado;
+      const abertas = posicoesAbertasEm([...dados.ordens, compra], { clienteId: 'c01', ate: p.fim }).some((o) => o.id === 'z1');
+      return { ok: antes === depois && abertas, det: `${antes} vs ${depois}` };
+    });
+    teste('posições abertas no fim de um dia: a venda posterior não conta', () => {
+      const ordens = [
+        { id: 'a', clienteId: 'c', moeda: 'BTC', lado: 'compra', status: 'executada', total: 10, executadaEm: new Date(2026, 9, 1, 10) },
+        { id: 'b', clienteId: 'c', moeda: 'BTC', lado: 'venda', status: 'executada', compraId: 'a', total: 11, executadaEm: new Date(2026, 9, 3, 10) },
+      ];
+      return posicoesAbertasEm(ordens, { ate: '2026-10-02' }).length === 1 && posicoesAbertasEm(ordens, { ate: '2026-10-03' }).length === 0;
+    });
+    teste('trocar o dia de fechamento não muda o período aberto; o próximo usa o novo dia', () => {
+      const dados2 = gerarDados({ historico: hist, agora });
+      carregarDados(dados2);
+      const aberto = periodoAberto('c01');
+      const { inicio, fim } = aberto;
+      definirDiaFechamento('c01', 20, 'cliente');
+      const mesmo = periodoAberto('c01');
+      const proximoPrevisto = proximoPeriodo(aberto, 20);
+      apurarPeriodo(aberto.id, new Date(`${fim}T23:59:00`));
+      const novo = periodoAberto('c01');
+      const c = getState().clientes.c01;
+      return {
+        ok: mesmo.inicio === inicio && mesmo.fim === fim && novo.diaFechamento === 20 && novo.inicio === proximoPrevisto.inicio
+          && novo.fim === proximoPrevisto.fim && c.diaFechamento === 20 && c.diaFechamentoProximo === null,
+        det: `aberto ${inicio}–${fim} · novo ${novo.inicio}–${novo.fim} (dia ${novo.diaFechamento})`,
+      };
+    });
+    teste('escolher de novo o dia atual desfaz a troca pendente', () => {
+      definirDiaFechamento('c02', 10, 'cliente');
+      const pendente = getState().clientes.c02.diaFechamentoProximo === 10;
+      definirDiaFechamento('c02', 20, 'cliente');
+      return pendente && getState().clientes.c02.diaFechamentoProximo === null;
+    });
+    teste('filtrar período e moedas recalcula em menos de 100 ms', () => {
+      const t = performance.now();
+      for (const m of [null, ['BTC'], ['ETH', 'SOL']]) {
+        relatorio(dados.ordens, { clienteId: 'c04', inicio: '2026-05-01', fim: '2026-10-24', moedas: m });
+        resumoBanca(dados.clientes.c04, dados.ordens, dados.movimentos, dados.precos);
+      }
+      const ms = (performance.now() - t) / 3;
+      return { ok: ms < 100, det: `${ms.toFixed(1)} ms por filtro` };
+    });
+    teste('distância até o alvo: progresso de 0 a 100% entre a compra e o alvo', () =>
+      progressoAteAlvo({ alvo: 110, precoCompra: 100, cotacao: 105 }) === 50
+      && progressoAteAlvo({ alvo: 110, precoCompra: 100, cotacao: 95 }) === 0
+      && progressoAteAlvo({ alvo: 110, precoCompra: 100, cotacao: 120 }) === 100
+      && progressoAteAlvo({ alvo: null, precoCompra: 100, cotacao: 120 }) === null);
+    teste('barra de uso da banca: fatias somam o caixa', () => {
+      const b = resumoBanca(dados.clientes.c01, dados.ordens, dados.movimentos, dados.precos);
+      const soma = fatiasDaBanca(b).reduce((s, f) => s + f.valor, 0);
+      const pct = fatiasDaBanca(b).reduce((s, f) => s + f.pct, 0);
+      return { ok: (b.disponivel < 0 || igual(soma, b.caixa, 0.01)) && igual(pct, 100, 0.001), det: `${soma.toFixed(2)} vs caixa ${b.caixa.toFixed(2)}` };
     });
 
     // ---------------------------------------------------------------

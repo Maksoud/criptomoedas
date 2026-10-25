@@ -1,6 +1,8 @@
 // Posições em aberto e lucro de cada venda (docs/DADOS_FICTICIOS.md §5).
 // Posição aberta = compra executada sem venda executada apontando para ela (compraId).
 
+import { fimDoDia, paraDiaISO } from '../utils/dates.js';
+
 const PROGRAMADA = new Set(['programada', 'aguardando-confirmacao']);
 
 export function estaProgramada(ordem) {
@@ -72,4 +74,21 @@ export function detalharPosicao(posicao, precos) {
 
 export function custoTotal(posicoes) {
   return posicoes.reduce((s, p) => s + p.custo, 0);
+}
+
+/**
+ * Posições que estavam abertas no fim de um dia (informativo do relatório): compras executadas até
+ * `ate` sem venda executada até `ate`. Filtros: clienteId, moedas. Devolve as compras de origem.
+ */
+export function posicoesAbertasEm(ordens, { clienteId = null, ate, moedas = null }) {
+  const limite = fimDoDia(paraDiaISO(ate)).getTime();
+  const filtro = moedas && moedas.length ? new Set(moedas) : null;
+  const vendidas = new Set();
+  for (const o of ordens) {
+    if (o.lado === 'venda' && o.status === 'executada' && o.compraId && +o.executadaEm <= limite) vendidas.add(o.compraId);
+  }
+  return ordens.filter((o) => o.lado === 'compra' && o.status === 'executada' && +o.executadaEm <= limite
+    && !vendidas.has(o.id)
+    && (!clienteId || o.clienteId === clienteId)
+    && (!filtro || filtro.has(o.moeda)));
 }
