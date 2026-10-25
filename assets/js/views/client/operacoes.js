@@ -1,7 +1,8 @@
 // C2 · Operações: compras e vendas executadas do cliente, com filtro por período, moedas e lado.
-// Uma operação nova (motor da F4) entra no topo da tabela com destaque, sem recarregar.
+// Uma operação nova (motor da F4) entra no topo da tabela com destaque, sem recarregar. Embaixo, as
+// ordens programadas que o administrador cancelou (A4) no mesmo intervalo.
 
-import { ordensNoPeriodo, ordemPorId } from '../../store.js';
+import { ordensNoPeriodo, ordemPorId, ordensDoCliente } from '../../store.js';
 import { gravarConsulta } from '../../router.js';
 import { lucroDaVenda } from '../../calc/positions.js';
 import { criarTabela } from '../../ui/table.js';
@@ -63,6 +64,13 @@ export function montarOperacoes(alvo, { definicao, consulta }) {
       <div class="card no-print" data-ref="filtros"></div>
       <p class="result-line" data-ref="resumo" aria-live="polite"></p>
       <div data-ref="tabela"></div>
+      <section class="card section" data-ref="canceladas-sec" aria-labelledby="c2-canceladas" hidden>
+        <header class="section__head">
+          <h2 id="c2-canceladas">Ordens canceladas pelo administrador</h2>
+          <p class="section__note">Compras canceladas devolvem o valor ao disponível; vendas canceladas deixam a posição sem alvo.</p>
+        </header>
+        <div data-ref="canceladas"></div>
+      </section>
     </section>`;
   const ref = (n) => alvo.querySelector(`[data-ref="${n}"]`);
 
@@ -94,10 +102,44 @@ export function montarOperacoes(alvo, { definicao, consulta }) {
     ref('resumo').innerHTML = partes.join(' · ');
   }
 
+  // Canceladas pelo admin no intervalo (pela data do cancelamento), com os mesmos filtros de moeda e lado.
+  const canceladas = criarTabela({
+    colunas: [
+      { id: 'data', titulo: 'Cancelada em', ordenar: (o) => +o.canceladaEm, html: (o) => `<span class="num">${dataHora(o.canceladaEm)}</span>` },
+      { id: 'moeda', titulo: 'Moeda', ordenar: (o) => o.moeda, html: (o) => C.moeda.html({ o }) },
+      { id: 'lado', titulo: 'Lado', html: (o) => `${ladoHTML(o.lado)} <span class="badge badge--faint badge--strike">Cancelada</span>` },
+      { id: 'preco', titulo: 'Preço', num: true, ordenar: (o) => o.preco, html: (o) => C.preco.html({ o }) },
+      { id: 'quantidade', titulo: 'Quantidade', num: true, html: (o) => C.quantidade.html({ o }) },
+      { id: 'total', titulo: 'Valor (USDT)', num: true, ordenar: (o) => o.total, html: (o) => C.total.html({ o }) },
+      { id: 'efeito', titulo: 'Efeito', html: (o) => `<span class="muted">${o.lado === 'compra' ? 'Valor de volta ao disponível' : 'Posição sem alvo'}</span>` },
+    ],
+    chave: (o) => o.id,
+    ordem: { col: 'data', dir: 'desc' },
+    porPagina: 20,
+    compacta: true,
+    rotulo: 'Ordens canceladas pelo administrador',
+  });
+  ref('canceladas').append(canceladas.el);
+
+  const canceladaNoFiltro = (o) => {
+    if (o.clienteId !== cliente.id || o.status !== 'cancelada' || o.canceladaPor !== 'admin' || !o.canceladaEm) return false;
+    const dia = diaISO(o.canceladaEm);
+    return dia >= filtros.de && dia <= filtros.ate
+      && (!filtros.lado || o.lado === filtros.lado)
+      && (!filtros.moedas.length || filtros.moedas.includes(o.moeda));
+  };
+
+  function aplicarCanceladas() {
+    const lista = ordensDoCliente(cliente.id, { status: 'cancelada' }).filter(canceladaNoFiltro);
+    canceladas.definir(lista);
+    ref('canceladas-sec').hidden = !lista.length;
+  }
+
   function aplicar() {
     const lista = ordensNoPeriodo(cliente.id, filtros.de, filtros.ate, { lado: filtros.lado || null, moedas: filtros.moedas });
     tabela.definir(lista.map(linhaDaOrdem));
     resumo();
+    aplicarCanceladas();
   }
 
   criarFiltros(ref('filtros'), {
@@ -123,6 +165,11 @@ export function montarOperacoes(alvo, { definicao, consulta }) {
   }
   ctx.on('order:executed', aoExecutar);
   ctx.on('order:new', aoExecutar);
+  ctx.on('order:canceled', (o) => {
+    if (!canceladaNoFiltro(o)) return;
+    ref('canceladas-sec').hidden = false;
+    canceladas.inserir(o);
+  });
 
   aplicar();
   return ctx;

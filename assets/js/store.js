@@ -259,7 +259,7 @@ export function executarOrdem(id, { preco = null, em = new Date(), motivo = null
  * Cancela uma ordem programada. Compra: o valor reservado volta ao disponível.
  * Venda: a posição continua aberta e fica "sem alvo".
  */
-export function cancelarOrdem(id, por = 'admin', { motivo = null, status = 'cancelada', em = new Date() } = {}) {
+export function cancelarOrdem(id, por = 'admin', { motivo = null, status = 'cancelada', em = new Date(), registrar = true } = {}) {
   const ordem = indice.get(id);
   if (!ordem) throw new Error(`Ordem não encontrada: ${id}`);
   if (!estaProgramada(ordem)) return ordem;
@@ -271,7 +271,7 @@ export function cancelarOrdem(id, por = 'admin', { motivo = null, status = 'canc
     const compra = indice.get(ordem.compraId);
     if (compra) compra.alvo = null;
   }
-  if (por === 'admin') {
+  if (por === 'admin' && registrar) {
     const nome = estado.clientes[ordem.clienteId]?.nome ?? ordem.clienteId;
     registrarLog(`${ordem.lado === 'compra' ? 'Compra' : 'Venda'} programada de ${ordem.moeda} de ${nome} cancelada`, 'admin', ordem.canceladaEm);
   }
@@ -329,12 +329,13 @@ export function definirVendaDinamica(compraId, alvo) {
 }
 
 /** Cancela a venda dinâmica: a posição fica "sem alvo" até o admin definir um novo. */
-export function cancelarVendaDinamica(compraId, por = 'admin') {
+export function cancelarVendaDinamica(compraId, por = 'admin', { registrar = true } = {}) {
   const compra = indice.get(compraId);
   if (!compra || !compra.vendaDinamica) return compra ?? null;
   compra.vendaDinamica = false;
   compra.alvo = null;
-  if (por === 'admin') {
+  compra.semAlvoDesde = new Date();
+  if (por === 'admin' && registrar) {
     const nome = estado.clientes[compra.clienteId]?.nome ?? compra.clienteId;
     registrarLog(`Venda dinâmica de ${compra.moeda} de ${nome} cancelada`, 'admin');
   }
@@ -513,6 +514,50 @@ export function definirDiaFechamento(clienteId, dia, por = 'cliente') {
   );
   emit('client:change', cliente);
   return cliente;
+}
+
+/**
+ * "Apurar agora" (admin): fecha o período aberto do cliente em ontem e abre o seguinte a partir de hoje,
+ * para nenhuma venda ficar sem período. Se o período aberto começou hoje, não há o que apurar.
+ */
+export function apurarAgora(clienteId, agora = new Date()) {
+  const p = periodoAberto(clienteId);
+  if (!p) throw new Error('Este cliente não tem período em aberto');
+  const ontem = somarDias(diaISO(agora), -1);
+  if (p.inicio > ontem) throw new Error('O período em aberto começou hoje: ainda não há dias fechados para apurar');
+  const cliente = estado.clientes[clienteId];
+  if (p.fim > ontem) p.fim = ontem;
+  registrarLog(`Apuração manual do período de ${cliente.nome} (fechado em ${ontem.split('-').reverse().join('/')})`, 'admin', agora);
+  return apurarPeriodo(p.id, agora);
+}
+
+/**
+ * "Forçar vencimento" (demonstração): antecipa o vencimento de um período apurado para ontem e roda a
+ * verificação, que marca o período como vencido e suspende as compras do cliente.
+ */
+export function forcarVencimento(periodoId, agora = new Date()) {
+  const p = estado.periodos.find((x) => x.id === periodoId);
+  if (!p) throw new Error(`Período não encontrado: ${periodoId}`);
+  if (p.status !== 'apurado') throw new Error('Só períodos apurados e não pagos podem vencer');
+  p.vencimento = somarDias(diaISO(agora), -1);
+  registrarLog(`Vencimento da comissão de ${estado.clientes[p.clienteId].nome} antecipado (demonstração)`, 'admin', agora);
+  verificarVencimentos(agora);
+  return p;
+}
+
+/** Registra um depósito ou saque no caixa do cliente e emite `cash:new`. */
+export function registrarMovimento(clienteId, tipo, valor, { observacao = '', em = new Date(), por = 'admin' } = {}) {
+  const cliente = estado.clientes[clienteId];
+  if (!cliente) throw new Error(`Cliente desconhecido: ${clienteId}`);
+  if (tipo !== 'deposito' && tipo !== 'saque') throw new Error('Tipo de movimentação inválido');
+  if (!(valor > 0)) throw new Error('O valor precisa ser maior que zero');
+  const seq = estado.movimentos.reduce((m, x) => Math.max(m, Number(String(x.id).replace(/\D/g, '')) || 0), 0);
+  const mov = { id: 'm' + String(seq + 1).padStart(4, '0'), clienteId, tipo, valor, data: new Date(em), observacao, origem: 'ao-vivo' };
+  estado.movimentos.push(mov);
+  const texto = tipo === 'deposito' ? 'Depósito' : 'Saque';
+  registrarLog(`${texto} de ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT registrado para ${cliente.nome}`, por, mov.data);
+  emit('cash:new', mov);
+  return mov;
 }
 
 /** Marca uma comissão como paga. Sem outro período vencido, a trava por comissão sai sozinha. */

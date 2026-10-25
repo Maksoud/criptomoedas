@@ -17,14 +17,16 @@ import * as feed from './market/feed.js';
 import { iniciarTicker } from './ui/ticker.js';
 import { iniciarSeletorCliente } from './ui/clientpicker.js';
 import { TELAS_CLIENTE } from './views/client/index.js';
+import { TELAS_ADMIN } from './views/admin/index.js';
 import { iniciarMotor } from './engine/engine.js';
 import * as motor from './engine/engine.js';
 import { iniciarApuracao } from './engine/apuracao.js';
 import { iniciarRegras } from './alerts/rules.js';
 import { iniciarCentral } from './alerts/center.js';
+import { iniciarAjustes } from './data/ajustes.js';
 
 const view = document.getElementById('view');
-const TELAS = { cliente: TELAS_CLIENTE, admin: {} };
+const TELAS = { cliente: TELAS_CLIENTE, admin: TELAS_ADMIN };
 let telaAtual = null; // contexto da tela montada (assinaturas, gráficos), desfeito ao trocar
 
 function carregarPreferencias() {
@@ -88,6 +90,7 @@ async function iniciar() {
   iniciarRegras();
   iniciarApuracao();
   iniciarCentral();
+  iniciarAjustes(); // depois do motor e da apuração: só grava o que muda após o carregamento
 
   on('route:change', aoMudarRota);
   on('route:query', desenharTela);   // filtros mudados pelo endereço (voltar/avançar, link colado)

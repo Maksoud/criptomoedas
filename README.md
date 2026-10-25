@@ -55,7 +55,7 @@ Todas aceitam **confirmação de sinal** (N velas, tempo ou volume) antes de agi
 
 ## Tecnologia
 
-HTML, CSS e JavaScript puro (ES Modules), sem etapa de build. API pública da Binance (REST e WebSocket, sem chave) para cotações. Chart.js para gráficos, Lucide para ícones, Inter e JetBrains Mono como fontes. Preferências, ajustes do admin e cache de preços ficam no `localStorage` do navegador.
+HTML, CSS e JavaScript puro (ES Modules), sem etapa de build. API pública da Binance (REST e WebSocket, sem chave) para cotações. Chart.js para gráficos, Lucide para ícones, Inter e JetBrains Mono como fontes. Preferências, ajustes do admin (moedas, clientes, alertas, travas) e cache de preços ficam no `localStorage` do navegador; depósitos, pagamentos, cancelamentos e o log valem até o fim do dia (o histórico fictício muda a cada dia). "Restaurar dados", no Painel geral do admin, apaga tudo isso.
 
 ## Rodar localmente
 
@@ -79,7 +79,7 @@ No servidor do maksoud.dev a pasta precisa do `.htaccess` com `DirectoryIndex in
 | [docs/DADOS_FICTICIOS.md](docs/DADOS_FICTICIOS.md) | Modelo de dados em memória e gerador do histórico |
 | [docs/IDENTIDADE_VISUAL.md](docs/IDENTIDADE_VISUAL.md) | Cores, tipografia, componentes e tom de voz |
 | [docs/fases/](docs/fases/) | Uma lista de tarefas e critérios de aceite por fase (F0 a F6) |
-| [docs/testes.html](docs/testes.html) | Asserções do gerador, relatórios, períodos, filtros, CSV, comissões, conexão ao vivo, velas, estratégias, confirmação de sinal, motor, alertas e apuração automática (abrir pelo servidor local, com a aba visível) |
+| [docs/testes.html](docs/testes.html) | Asserções do gerador, relatórios, períodos, filtros, CSV, comissões, conexão ao vivo, velas, estratégias, confirmação de sinal, motor, alertas, apuração automática e ações do admin (abrir pelo servidor local, com a aba visível) |
 | [docs/CRYPTOBOT_MVP.md](docs/CRYPTOBOT_MVP.md) | Análise de um projeto anterior — só para consulta de lógica, não define regras deste |
 
 ## Andamento
@@ -91,5 +91,5 @@ No servidor do maksoud.dev a pasta precisa do `.htaccess` com `DirectoryIndex in
 | F2 | Cotações ao vivo (Binance) | Concluída |
 | F3 | Visão do cliente | Concluída |
 | F4 | Motor de estratégias e alertas | Concluída |
-| F5 | Visão do administrador | A fazer |
+| F5 | Visão do administrador | Concluída |
 | F6 | Polimento e publicação | A fazer |

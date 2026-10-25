@@ -1,4 +1,4 @@
-/* Impressão (relatório C4 em A4 retrato, margens de 16 mm): fundo branco, sem menu nem topo,
+/* Impressão (relatórios C4/A5 e apuração A6 em A4 retrato, margens de 16 mm): fundo branco, sem menu nem topo,
    logo preto + âmbar no cabeçalho e selo "dados fictícios" no rodapé de cada página. */
 @media print {
   :root,
@@ -63,6 +63,14 @@
   .report-stats .stat__value { font-size: 13px; line-height: 18px; }
   .report-stats .stat--main .stat__value { font-size: 14px; }
   .report-stats .stat__extra { font-size: 9px; line-height: 12px; }
+
+  /* Apuração de comissões (A6): cabeçalho com o logo, sem filtros nem botões de ação. */
+  .apuracao > .page-head { display: none; }
+  .apuracao .report-head.print-only { display: grid; }
+  .apuracao .report-head__brand { display: flex; }
+  .apuracao .report-meta { grid-template-columns: repeat(2, 1fr); }
+  .apuracao th[data-col="acoes"], .apuracao td[data-col="acoes"] { display: none; }
+  .apuracao .kpis { grid-template-columns: repeat(4, 1fr); }
 
   /* Tabelas: tudo visível, sem rolagem nem cabeçalho fixo. */
   .table-wrap { max-height: none !important; overflow: visible !important; }

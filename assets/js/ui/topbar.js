@@ -1,12 +1,12 @@
-// Barra superior: seletor de visão, robô, sino de alertas, tema e origem das cotações.
+// Barra superior: seletor de visão, trava global de compras (admin), robô, sino de alertas, tema e
+// origem das cotações.
 // A faixa de cotações fica em ui/ticker.js.
-import { getState, setState, on } from '../store.js';
+import { getState, setState, on, atualizarConfig } from '../store.js';
 import { trocarVisao, hashDe } from '../router.js';
 import { paginaInicial } from '../views/routes.js';
 import { icon, renderIcons } from './icons.js';
 import { abrirCamada, fecharCamada } from './scrim.js';
 import * as persist from '../persist.js';
-import { restaurarDados } from '../data/loader.js';
 import { textoOrigem } from './notices.js';
 
 const $ = (id) => document.getElementById(id);
@@ -126,18 +126,30 @@ function iniciarAlertas() {
   $('alerts-close').addEventListener('click', fecharAlertas);
 }
 
-// ---------- Restaurar dados (provisório no topo; vai para o admin na F5) ----------
-function iniciarRestaurar() {
-  const btn = $('restore-data');
-  const desenhar = () => { btn.disabled = getState().carregando; };
-  btn.addEventListener('click', () => {
-    restaurarDados();
-    const texto = btn.querySelector('.restore-btn__text');
-    texto.textContent = 'Dados restaurados';
-    setTimeout(() => { texto.textContent = 'Restaurar dados'; }, 2000);
-  });
-  on('data:ready', desenhar);
-  desenhar();
+// ---------- Travar compras (global, só na visão Administrador) ----------
+// Trava novas compras de todos os clientes; as vendas programadas continuam. A faixa "Compras travadas"
+// com o botão "Destravar" fica em ui/notices.js.
+export function alternarTravaGlobal() {
+  atualizarConfig({ travaGlobal: !getState().config.travaGlobal });
+}
+
+function desenharTrava() {
+  const btn = $('lock-toggle');
+  const travado = !!getState().config.travaGlobal;
+  btn.disabled = getState().carregando;
+  btn.setAttribute('aria-pressed', String(travado));
+  btn.classList.toggle('is-locked', travado);
+  btn.title = travado ? 'Compras travadas para todos os clientes. Clique para destravar.' : 'Travar novas compras de todos os clientes (as vendas continuam)';
+  btn.setAttribute('aria-label', travado ? 'Compras travadas. Destravar compras' : 'Travar compras de todos os clientes');
+  btn.innerHTML = `${icon(travado ? 'lock' : 'lock-open')}<span class="lock-btn__text">${travado ? 'Compras travadas' : 'Travar compras'}</span>`;
+  renderIcons();
+}
+
+function iniciarTrava() {
+  $('lock-toggle').addEventListener('click', alternarTravaGlobal);
+  on('config:change', ({ mudou }) => { if (mudou.includes('travaGlobal')) desenharTrava(); });
+  on('data:ready', desenharTrava);
+  desenharTrava();
 }
 
 // ---------- Origem das cotações ----------
@@ -154,7 +166,7 @@ export function iniciarTopbar() {
   iniciarRobo();
   iniciarTema();
   iniciarAlertas();
-  iniciarRestaurar();
+  iniciarTrava();
   on('state:mercado', desenharOrigem);
   desenharOrigem(getState().mercado);
 }

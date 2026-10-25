@@ -9,6 +9,7 @@ import { carregarDados, setState, emit, getState, CONFIG_PADRAO } from '../store
 import * as persist from '../persist.js';
 import { DEV } from '../utils/env.js';
 import { regrasPadrao, alertasIniciais } from '../alerts/rules.js';
+import { aplicarAjustes, esquecerAjustes } from './ajustes.js';
 
 let historico = null;
 let ticker = null;
@@ -16,6 +17,7 @@ let ticker = null;
 function aplicar() {
   const config = { ...CONFIG_PADRAO, ...(persist.get('config') ?? {}) };
   const dados = gerarDados({ historico, ticker, config });
+  aplicarAjustes(dados);
   dados.regrasAlerta = regrasPadrao(persist.get('regrasAlerta') ?? {});
   dados.alertas = alertasIniciais({ ...dados, regras: dados.regrasAlerta });
   if (DEV) {
@@ -52,11 +54,12 @@ export async function iniciarDados() {
   return getState();
 }
 
-/** Volta ao estado inicial: descarta ajustes salvos e gera de novo sobre o mesmo histórico. */
+/** Volta ao estado inicial: descarta ajustes e ações salvos e gera de novo sobre o mesmo histórico. */
 export function restaurarDados() {
   if (!historico) return;
   persist.remove('config');
   persist.remove('regrasAlerta');
+  esquecerAjustes();
   aplicar();
   emit('data:reset', getState());
 }

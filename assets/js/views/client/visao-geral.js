@@ -272,6 +272,8 @@ export function montarVisaoGeral(alvo, { definicao }) {
   ctx.on('order:executed', aoExecutar);
   ctx.on('order:new', aoExecutar);
   ctx.on('order:canceled', (o) => { if (o?.clienteId === cliente.id) aoOperar.pedir(); });
+  ctx.on('cash:new', (m) => { if (m?.clienteId === cliente.id) aoOperar.pedir(); });
+  ctx.on('client:change', (c) => { if (c?.id === cliente.id) aoOperar.pedir(); });
 
   tudo();
   return ctx;

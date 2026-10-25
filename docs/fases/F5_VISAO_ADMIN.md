@@ -6,21 +6,21 @@
 
 ## Tarefas
 
-- [ ] **Botão Travar compras (global)** no topo da visão admin, com estado visível (cadeado + faixa "Compras travadas"). Trava também por cliente e por moeda.
-- [ ] **A1 Painel geral**: totais da casa (caixa sob gestão, patrimônio, volume no período, resultado, comissões apuradas a receber e previstas), cards por cliente (patrimônio, resultado %, barra de uso da banca, status, minigráfico), filtro por status, feed ao vivo de operações de todos, últimos alertas.
-- [ ] **A2 Moedas e estratégias**:
+- [x] **Botão Travar compras (global)** no topo da visão admin, com estado visível (cadeado + faixa "Compras travadas"). Trava também por cliente e por moeda.
+- [x] **A1 Painel geral**: totais da casa (caixa sob gestão, patrimônio, volume no período, resultado, comissões apuradas a receber e previstas), cards por cliente (patrimônio, resultado %, barra de uso da banca, status, minigráfico), filtro por status, feed ao vivo de operações de todos, últimos alertas.
+- [x] **A2 Moedas e estratégias**:
   - tabela de moedas com liga/desliga, trava de compras, spread, estratégia e estado do motor;
   - painel da moeda com formulário gerado a partir de `estrategia.parametros` (validação de mín/máx, texto de ajuda), parâmetros gerais (lucro mínimo, stop, piso/teto, máx. posições) e **confirmação de sinal**;
   - botões "Aplicar perfil Demonstração / Padrão" (nesta moeda ou em todas);
   - prévia: "Próxima compra em ~X USDT, venda em ~Y USDT"; para a estratégia G, gráfico do canal com zonas;
   - atalho **Alertas desta moeda** (variação brusca, preço alvo, canal) sem sair da tela.
-- [ ] **A3 Clientes**: lista + painel de edição: status, caixa (somente leitura, com histórico), **reserva de banca %**, valor por ordem (fixo/%), % comissão, **dia de fechamento (10/20/30)**, prazo de pagamento, moedas operadas, trava de compras, atalho **Alertas deste cliente** (uso da banca, posição em queda). Botão "Ver como cliente". Registrar depósito/saque.
-- [ ] **A4 Ordens programadas**: compras, vendas programadas, vendas dinâmicas e sinais aguardando confirmação de todos os clientes; filtros por cliente, moeda, lado, estratégia; seleção múltipla; **Cancelar selecionadas** e **Cancelar todas as compras** com modal mostrando quantidade e valor afetado. Posições "sem alvo" com ação **Definir novo alvo** (preço ou %).
-- [ ] **A5 Relatórios**: cliente (ou "Todos — consolidado"), período e moedas; reaproveita o componente do C4; consolidado com uma linha por cliente. CSV e impressão.
-- [ ] **A6 Apuração de comissões**: tabela de períodos de todos os clientes (filtros por status e fechamento 10/20/30); **Apurar agora** e **Forçar vencimento** (com confirmação, para a demo); **Marcar como pago** (libera as compras do cliente); vencidas no topo com o cliente marcado "compras suspensas"; totais: apurado a receber, pago no mês, previsto nos períodos abertos; relatório de apuração imprimível.
-- [ ] **A7 Alertas**: lista de regras com liga/desliga, limites, escopo, canais (toast, som, navegador; e-mail/Telegram "em breve"), ação automática e cooldown; botão "Testar alerta"; histórico de alertas disparados com filtro.
-- [ ] Persistir configurações e ações do admin no `localStorage`; "Restaurar dados" aqui, com confirmação.
-- [ ] Log de ações do admin e automáticas (ex.: "24/10 14:32 — Compras de BTC travadas") exibido no A1.
+- [x] **A3 Clientes**: lista + painel de edição: status, caixa (somente leitura, com histórico), **reserva de banca %**, valor por ordem (fixo/%), % comissão, **dia de fechamento (10/20/30)**, prazo de pagamento, moedas operadas, trava de compras, atalho **Alertas deste cliente** (uso da banca, posição em queda). Botão "Ver como cliente". Registrar depósito/saque.
+- [x] **A4 Ordens programadas**: compras, vendas programadas, vendas dinâmicas e sinais aguardando confirmação de todos os clientes; filtros por cliente, moeda, lado, estratégia; seleção múltipla; **Cancelar selecionadas** e **Cancelar todas as compras** com modal mostrando quantidade e valor afetado. Posições "sem alvo" com ação **Definir novo alvo** (preço ou %).
+- [x] **A5 Relatórios**: cliente (ou "Todos — consolidado"), período e moedas; reaproveita o componente do C4; consolidado com uma linha por cliente. CSV e impressão.
+- [x] **A6 Apuração de comissões**: tabela de períodos de todos os clientes (filtros por status e fechamento 10/20/30); **Apurar agora** e **Forçar vencimento** (com confirmação, para a demo); **Marcar como pago** (libera as compras do cliente); vencidas no topo com o cliente marcado "compras suspensas"; totais: apurado a receber, pago no mês, previsto nos períodos abertos; relatório de apuração imprimível.
+- [x] **A7 Alertas**: lista de regras com liga/desliga, limites, escopo, canais (toast, som, navegador; e-mail/Telegram "em breve"), ação automática e cooldown; botão "Testar alerta"; histórico de alertas disparados com filtro.
+- [x] Persistir configurações e ações do admin no `localStorage`; "Restaurar dados" aqui, com confirmação.
+- [x] Log de ações do admin e automáticas (ex.: "24/10 14:32 — Compras de BTC travadas") exibido no A1.
 
 ## Critérios de aceite
 

@@ -1,5 +1,5 @@
-// Avisos fixos no alto do conteúdo (ex.: histórico simulado por falta de conexão).
-import { on, getState } from '../store.js';
+// Avisos fixos no alto do conteúdo: compras travadas (admin) e cotações simuladas por falta de conexão.
+import { on, getState, atualizarConfig } from '../store.js';
 import { icon, renderIcons } from './icons.js';
 import { dataHora } from '../utils/format.js';
 import { reconectarAgora } from '../market/feed.js';
@@ -19,14 +19,26 @@ const TEXTOS = {
   },
 };
 
-function desenhar() {
-  const { mercado, carregando } = getState();
-  if (carregando || mercado.fonte !== 'simulado') {
-    area().innerHTML = '';
-    return;
-  }
+// Faixa "Compras travadas" (visão Administrador): fica no alto enquanto a trava global estiver ligada.
+function faixaTrava() {
+  const { config, visao } = getState();
+  if (!config.travaGlobal || visao !== 'admin') return '';
+  return `
+    <div class="band band--lock" role="status">
+      <span class="band__icon">${icon('lock')}</span>
+      <div class="band__body">
+        <p class="band__title">Compras travadas para todos os clientes</p>
+        <p class="band__text">O robô não faz novas compras. As vendas programadas e dinâmicas continuam executando.</p>
+      </div>
+      <button class="btn btn--secondary btn--sm" type="button" data-acao="destravar">${icon('lock-open')}<span>Destravar</span></button>
+    </div>`;
+}
+
+function avisoSimulado() {
+  const { mercado } = getState();
+  if (mercado.fonte !== 'simulado') return '';
   const t = mercado.historicoFonte === 'simulado' ? TEXTOS.historico : TEXTOS.aoVivo;
-  area().innerHTML = `
+  return `
     <div class="notice notice--warn" role="status">
       <span class="notice__icon">${icon('wifi-off')}</span>
       <div class="notice__body">
@@ -37,15 +49,26 @@ function desenhar() {
         ${icon('refresh-cw')}<span>${t.botao}</span>
       </button>
     </div>`;
+}
+
+let ultimo = null;
+function desenhar() {
+  const html = getState().carregando ? '' : faixaTrava() + avisoSimulado();
+  if (html === ultimo) return;
+  ultimo = html;
+  area().innerHTML = html;
   renderIcons();
 }
 
 export function iniciarAvisos() {
   area().addEventListener('click', (e) => {
     if (e.target.closest('[data-acao="reconectar"]')) reconectarAgora();
+    if (e.target.closest('[data-acao="destravar"]')) atualizarConfig({ travaGlobal: false });
   });
   on('state:mercado', desenhar);
   on('data:ready', desenhar);
+  on('view:change', desenhar);
+  on('config:change', ({ mudou }) => { if (mudou.includes('travaGlobal')) desenhar(); });
   desenhar();
 }
 

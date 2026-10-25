@@ -321,11 +321,14 @@
 .stat__value { font-size: 16px; line-height: 24px; color: var(--text); white-space: nowrap; }
 .stat__extra { color: var(--text-muted); font-size: var(--fs-label); line-height: var(--lh-label); }
 
-/* ---------- Restaurar dados (provisório no topo) ---------- */
-.restore-btn:disabled { opacity: .5; cursor: default; }
+/* ---------- Travar compras (topo, só na visão Administrador) ---------- */
+[data-view="cliente"] .lock-btn { display: none; }
+.lock-btn:disabled { opacity: .5; cursor: default; }
+.lock-btn.is-locked { background: var(--warn-bg); border-color: transparent; color: var(--warn); }
+.lock-btn.is-locked:hover { background: var(--warn-bg); filter: brightness(1.1); }
 @media (max-width: 1100px) {
-  .restore-btn__text { display: none; }
-  .restore-btn { width: var(--control-h-sm); padding: 0; }
+  .lock-btn__text { display: none; }
+  .lock-btn { width: var(--control-h-sm); padding: 0; justify-content: center; }
 }
 
 /* ======================================================================
@@ -692,10 +695,9 @@ th.is-num .th-sort { flex-direction: row-reverse; }
 /* ---------- Badges extras ---------- */
 .badge .icon { width: 12px; height: 12px; }
 
-/* Celular estreito: o seletor de cliente precisa do espaço; "Restaurar dados" é provisório e vai para o admin na F5. */
+/* Celular estreito: o seletor de cliente precisa do espaço. */
 @media (max-width: 480px) {
   .client-picker { margin-left: 0; padding: 0; }
-  [data-view="cliente"] .restore-btn { display: none; }
 }
 
 /* ---------- Central de alertas (painel) ---------- */
@@ -823,3 +825,165 @@ th.is-num .th-sort { flex-direction: row-reverse; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 @media print { .toasts { display: none; } }
+
+
+/* ======================================================================
+   Componentes da visão Administrador (F5)
+   ====================================================================== */
+
+/* ---------- Faixa "Compras travadas" ---------- */
+.band__body { flex: 1; min-width: 0; }
+.band > .btn { flex-shrink: 0; align-self: center; }
+.band--lock { box-shadow: inset 3px 0 0 var(--warn); }
+.notices { display: grid; gap: var(--space-3); }
+@media (max-width: 640px) {
+  .band { flex-wrap: wrap; }
+  .band > .btn { width: 100%; }
+}
+
+/* ---------- Modal ---------- */
+.modal {
+  width: min(560px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100vh - 2 * var(--space-6));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+.modal--sm { width: min(440px, calc(100vw - 2 * var(--space-4))); }
+.modal--lg { width: min(820px, calc(100vw - 2 * var(--space-4))); }
+.modal[open] { animation: modal-in var(--dur-open) var(--ease); }
+.modal::backdrop { background: var(--overlay); }
+@keyframes modal-in { from { opacity: 0; transform: translateY(8px); } }
+.modal__box { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-height: inherit; margin: 0; }
+.modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3) var(--space-5);
+}
+.modal__head h2 { font-size: var(--fs-h2); }
+.modal__body { display: grid; gap: var(--space-4); padding: 0 var(--space-5) var(--space-4); overflow-y: auto; }
+.modal__foot {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.modal__impact {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+.modal__text { color: var(--text-muted); }
+.modal__text a { margin-left: var(--space-1); }
+@media (max-width: 480px) {
+  .modal__foot .btn { flex: 1; }
+}
+
+/* ---------- Interruptor (checkbox) ---------- */
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 18px;
+  margin: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  cursor: pointer;
+  transition: background var(--dur-hover) var(--ease);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform var(--dur-hover) var(--ease), background var(--dur-hover) var(--ease);
+}
+.switch:checked { background: var(--brand); box-shadow: none; }
+.switch:checked::after { transform: translateX(14px); background: var(--brand-contrast); }
+.switch:disabled { opacity: .45; cursor: not-allowed; }
+.switch:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.switch-field { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-h); cursor: pointer; }
+.switch-field > span { color: var(--text-muted); }
+.switch-field--compact { min-height: 0; }
+.switch-row .switch { width: 32px; height: 18px; }
+
+/* ---------- Campos ---------- */
+.input-group { display: flex; align-items: stretch; min-width: 0; }
+.input-group .input { flex: 1; min-width: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.input-group .input:only-child { border-radius: var(--radius-sm); }
+.input-group__suffix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-label);
+  white-space: nowrap;
+}
+.input[aria-invalid="true"] { border-color: var(--down); }
+.input:disabled { opacity: .6; cursor: not-allowed; }
+.field--inline { grid-auto-flow: column; align-items: center; gap: var(--space-2); }
+.field--inline .field__label { white-space: nowrap; }
+
+.pfields { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-4); }
+.pfield { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
+.pfield__label { display: inline-flex; align-items: center; gap: var(--space-2); }
+.pfield__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); }
+.pfield__dot[hidden] { display: none; }
+.pfield__help { color: var(--text-muted); font-size: var(--fs-label); line-height: var(--lh-label); }
+.pfield__erro { color: var(--down); font-size: var(--fs-label); line-height: var(--lh-label); }
+.pfield__erro[hidden], .pfield__reset[hidden] { display: none; }
+.pfield.is-changed .input { border-color: var(--brand); }
+.link-btn { color: var(--brand-text); font-size: var(--fs-label); line-height: var(--lh-label); text-align: left; justify-self: start; }
+.link-btn:hover { text-decoration: underline; }
+
+.check { width: 16px; height: 16px; margin: 0; accent-color: var(--brand); cursor: pointer; vertical-align: middle; }
+
+/* ---------- Botões e badges extras ---------- */
+.icon-btn--sm { width: 28px; height: 28px; }
+.btn--danger-outline { color: var(--down); }
+.btn--danger-outline:hover { background: var(--down-bg); }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.badge--admin { background: var(--mode-admin-bg); color: var(--mode-admin); }
+.badge--strike { text-decoration: line-through; }
+.chip__count { color: var(--text-faint); font-size: 11px; }
+.chip__count:empty { display: none; }
+.chips--sm .chip { height: 26px; }
+.kpi__value.warn { color: var(--warn); }
+
+/* ---------- Avatar (iniciais) ---------- */
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 600;
+  font-size: 13px;
+}
+.avatar--sm { width: 26px; height: 26px; font-size: 11px; }
+.avatar[data-status="pausado"] { background: var(--warn-bg); color: var(--warn); }
+.avatar[data-status="inativo"] { background: var(--surface-2); color: var(--text-faint); }

@@ -68,6 +68,13 @@
     import { verificarApuracao } from '../assets/js/engine/apuracao.js';
     import { noEscopo, criarSilencio, variacaoNaJanela, cruzou, regrasPadrao, alertasIniciais } from '../assets/js/alerts/rules.js';
     import { visivelPara, contarNaoLidos } from '../assets/js/alerts/center.js';
+    import { podeComprar } from '../assets/js/engine/engine.js';
+    import { dispararRegra } from '../assets/js/alerts/rules.js';
+    import { linhasPorCliente } from '../assets/js/views/client/relatorio.js';
+    import { validarCliente } from '../assets/js/views/admin/clientes.js';
+    import { previa as previaA2 } from '../assets/js/views/admin/moedas.js';
+    import { impactoDoCancelamento } from '../assets/js/views/admin/ordens.js';
+    import { escopoCom } from '../assets/js/views/admin/regras.js';
 
     const grupos = [];
     let atual = null;
@@ -778,6 +785,112 @@
       for (const x of s.periodos) if (x.clienteId === c.id && x.status === 'vencido') loja.marcarPago(x.id, depois);
       const liberado = !c.travaPorComissao && s.logAdmin.some((l) => l.texto === `Comissão de ${c.nome} paga: compras liberadas`);
       return { ok: travado && liberado, det: `${p.id} ${p.status} · trava ${c.travaPorComissao}` };
+    });
+
+    // ---------------------------------------------------------------
+    grupo('Visão do administrador (F5)');
+    teste('trava global: nenhuma compra nova em 2 min simulados; vendas continuam', () => {
+      const s = prepararMotor();
+      s.config.travaGlobal = true;
+      try { passeio(s, 120, { passo: 0.006 }); } finally { s.config.travaGlobal = false; }
+      const compras = aoVivo(s).filter((o) => o.lado === 'compra');
+      const vendas = aoVivo(s).filter((o) => o.lado === 'venda' && o.status === 'executada');
+      return { ok: compras.length === 0, det: `${compras.length} compras · ${vendas.length} vendas` };
+    });
+    teste('desligar uma moeda: o motor para de comprar nela e as posições continuam', () => {
+      const s = prepararMotor();
+      const pos = posicoesAbertas(s.ordens, { moeda: 'BTC' }).length;
+      s.moedas.BTC.ativa = false;
+      passeio(s, 120, { passo: 0.006 });
+      const compras = aoVivo(s).filter((o) => o.moeda === 'BTC' && o.lado === 'compra');
+      const ok = compras.length === 0 && posicoesAbertas(s.ordens, { moeda: 'BTC' }).length === pos;
+      s.moedas.BTC.ativa = true;
+      return { ok, det: `${compras.length} compras · ${pos} posições` };
+    });
+    teste('cancelar compra programada: sai das programadas, fica cancelada e o disponível aumenta', () => {
+      const s = prepararMotor();
+      passeio(s, 20); // o motor programa as compras da estratégia B
+      const o = loja.ordensProgramadas({ lado: 'compra' })[0];
+      if (!o) return { ok: false, det: 'sem compra programada' };
+      const c = s.clientes[o.clienteId];
+      const antes = resumoBanca(c, s.ordens, s.movimentos).disponivel;
+      loja.cancelarOrdem(o.id, 'admin');
+      const depois = resumoBanca(c, s.ordens, s.movimentos).disponivel;
+      return { ok: o.status === 'cancelada' && !loja.ordensProgramadas().includes(o) && igual(depois - antes, o.total, 0.01), det: `${antes.toFixed(2)} → ${depois.toFixed(2)}` };
+    });
+    teste('mudar o spread afeta só as próximas ordens', () => {
+      const s = prepararMotor();
+      const exec = JSON.stringify(s.ordens.filter((o) => o.status === 'executada'));
+      const prog = JSON.stringify(loja.ordensProgramadas({ moedas: ['BTC'] }).map((o) => [o.id, o.preco]));
+      loja.atualizarMoeda('BTC', { params: { ...s.moedas.BTC.params, spread: 1.5 } });
+      return exec === JSON.stringify(s.ordens.filter((o) => o.status === 'executada'))
+        && prog === JSON.stringify(loja.ordensProgramadas({ moedas: ['BTC'] }).map((o) => [o.id, o.preco]));
+    });
+    teste('baixar a reserva de banca de um cliente bloqueado libera novas compras', () => {
+      const s = prepararMotor();
+      const c = Object.values(s.clientes).find((x) => x.status === 'ativo' && !x.travaPorComissao);
+      c.reservaPct = 99;
+      const bloqueado = podeComprar(c.id, c.moedas[0]).regra;
+      c.reservaPct = 0;
+      const depois = podeComprar(c.id, c.moedas[0]);
+      return { ok: bloqueado === 'reserva' && depois.regra !== 'reserva', det: `${bloqueado} → ${depois.regra ?? 'ok'}` };
+    });
+    teste('trocar o dia de fechamento pelo admin mantém o período aberto e vale no próximo', () => {
+      prepararMotor();
+      const c = getState().clientes.c01;
+      const p = periodoAberto('c01');
+      const datas = [p.inicio, p.fim];
+      const outro = [10, 20, 30].find((d) => d !== c.diaFechamento);
+      definirDiaFechamento('c01', outro, 'admin');
+      return JSON.stringify([p.inicio, p.fim]) === JSON.stringify(datas) && c.diaFechamentoProximo === outro;
+    });
+    teste('"Apurar agora" fecha em ontem, congela e abre o próximo a partir de hoje', () => {
+      const s = prepararMotor();
+      const hoje = diaISO(new Date());
+      const c = Object.values(s.clientes).find((x) => { const p = periodoAberto(x.id); return p && p.inicio < hoje; });
+      const p = periodoAberto(c.id);
+      loja.apurarAgora(c.id);
+      const novo = periodoAberto(c.id);
+      return { ok: p.status !== 'aberto' && p.fim < hoje && novo?.inicio === hoje && p.comissao != null, det: `${p.status} ${p.fim} · novo ${novo?.inicio}` };
+    });
+    teste('"Forçar vencimento" trava as compras; "Marcar como pago" destrava', () => {
+      const s = getState();
+      const p = s.periodos.find((x) => x.status === 'apurado' && x.comissao > 0 && !s.clientes[x.clienteId].travaPorComissao);
+      if (!p) return { ok: false, det: 'nenhum período apurado' };
+      const c = s.clientes[p.clienteId];
+      loja.forcarVencimento(p.id);
+      const travado = p.status === 'vencido' && c.travaPorComissao && podeComprar(c.id, c.moedas[0]).regra === 'trava-comissao';
+      loja.marcarPago(p.id);
+      return { ok: travado && !c.travaPorComissao, det: `${p.status} · ${c.travaPorComissao}` };
+    });
+    teste('alerta com ação "travar compras da moeda" trava e registra no log', () => {
+      const s = prepararMotor();
+      s.regrasAlerta['variacao-brusca'] = { ...s.regrasAlerta['variacao-brusca'], acaoAutomatica: 'travar-moeda' };
+      dispararRegra('variacao-brusca', { moeda: 'SOL', dados: { pct: 4, direcao: 'queda', referencia: 100, atual: 96 }, em: Date.now() + 9e6 });
+      return s.moedas.SOL.travaCompras && s.logAdmin.some((l) => l.texto === 'Compras de SOL travadas automaticamente por Variação brusca');
+    });
+    teste('consolidado: soma das comissões por cliente = total dos períodos', () => {
+      const s = prepararMotor();
+      const de = '2000-01-01';
+      const ate = '2099-12-31';
+      const rel = relatorio(s.ordens, { inicio: de, fim: ate });
+      const linhas = linhasPorCliente(rel, { clientes: s.clientes, periodos: s.periodos, ordens: s.ordens, de, ate });
+      const soma = linhas.reduce((t, l) => t + l.comissao, 0);
+      const porPeriodo = s.periodos.reduce((t, p) => t + (p.status === 'aberto'
+        ? calcularComissao(relatorio(s.ordens, { clienteId: p.clienteId, inicio: p.inicio, fim: p.fim }).resultado, s.clientes[p.clienteId].comissaoPct)
+        : p.comissao), 0);
+      const resultado = linhas.reduce((t, l) => t + l.resultado, 0);
+      return { ok: igual(soma, porPeriodo, 0.02) && igual(resultado, rel.resultado, 0.01), det: `${soma.toFixed(2)} · ${porPeriodo.toFixed(2)}` };
+    });
+    teste('validação do cliente, prévia da A2, impacto do cancelamento e escopo das regras', () => {
+      const v = validarCliente({ status: 'ativo', reservaPct: '95', comissaoPct: '20', prazoPagamentoDias: '5', valorOrdemTipo: 'fixo', valorOrdem: '2', moedas: ['BTC'] }, ['BTC', 'ETH']);
+      const pr = previaA2('spread-fixo', { spread: 1, lucro: 2, lucroMinimo: 0.5 }, 100);
+      const imp = impactoDoCancelamento([{ lado: 'compra', valor: 10 }, { lado: 'compra', valor: 5 }, { lado: 'venda', valor: 99 }]);
+      const sc = escopoCom({ escopo: { moedas: 'todas' } }, 'moedas', 'BTC', false);
+      return !!v.erros.reservaPct && !!v.erros.valorOrdem && !v.erros.comissaoPct
+        && igual(pr.compra, 99, 1e-9) && igual(pr.venda, 100.98, 1e-9)
+        && imp.compras === 2 && imp.vendas === 1 && imp.valorCompras === 15
+        && Array.isArray(sc.moedas) && !sc.moedas.includes('BTC') && escopoCom({ escopo: sc }, 'moedas', 'BTC', true).moedas === 'todas';
     });
 
     await Promise.all(assincronos);

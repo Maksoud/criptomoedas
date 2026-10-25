@@ -421,7 +421,7 @@ export function verificarPeriodicas(agora = Date.now(), { soSilenciar = false } 
     }
     for (const p of posicoes) {
       if (!p.semAlvo) continue;
-      const desde = canceladas.get(p.compra.id) ?? +p.compra.executadaEm;
+      const desde = Math.max(canceladas.get(p.compra.id) ?? 0, +p.compra.semAlvoDesde || 0) || +p.compra.executadaEm;
       const passou = Math.floor((agora - desde) / MS_MIN);
       if (passou < minutos) continue;
       disparar('posicao-sem-alvo', {
