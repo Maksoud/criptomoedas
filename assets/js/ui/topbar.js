@@ -5,6 +5,8 @@ import { paginaInicial } from '../views/routes.js';
 import { icon, renderIcons } from './icons.js';
 import { abrirCamada, fecharCamada } from './scrim.js';
 import * as persist from '../persist.js';
+import { restaurarDados } from '../data/loader.js';
+import { textoOrigem } from './notices.js';
 
 const $ = (id) => document.getElementById(id);
 const temaClaroMQ = window.matchMedia('(prefers-color-scheme: light)');
@@ -121,6 +123,29 @@ function iniciarAlertas() {
   $('alerts-close').addEventListener('click', fecharAlertas);
 }
 
+// ---------- Restaurar dados (provisório no topo; vai para o admin na F5) ----------
+function iniciarRestaurar() {
+  const btn = $('restore-data');
+  const desenhar = () => { btn.disabled = getState().carregando; };
+  btn.addEventListener('click', () => {
+    restaurarDados();
+    const texto = btn.querySelector('.restore-btn__text');
+    texto.textContent = 'Dados restaurados';
+    setTimeout(() => { texto.textContent = 'Restaurar dados'; }, 2000);
+  });
+  on('data:ready', desenhar);
+  desenhar();
+}
+
+// ---------- Origem das cotações ----------
+function desenharOrigem(mercado) {
+  const { estado, texto, titulo } = textoOrigem(mercado);
+  const el = $('quote-source');
+  el.querySelector('.source-dot').dataset.state = estado;
+  el.querySelector('.ticker__source-text').textContent = texto;
+  el.title = titulo;
+}
+
 // ---------- Faixa de cotações (preenchida na F2) ----------
 function desenharTickerProvisorio() {
   const larguras = [56, 64, 48, 60, 52, 58];
@@ -138,5 +163,8 @@ export function iniciarTopbar() {
   iniciarRobo();
   iniciarTema();
   iniciarAlertas();
+  iniciarRestaurar();
+  on('state:mercado', desenharOrigem);
+  desenharOrigem(getState().mercado);
   desenharTickerProvisorio();
 }

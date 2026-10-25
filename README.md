@@ -79,6 +79,7 @@ No servidor do maksoud.dev a pasta precisa do `.htaccess` com `DirectoryIndex in
 | [docs/DADOS_FICTICIOS.md](docs/DADOS_FICTICIOS.md) | Modelo de dados em memória e gerador do histórico |
 | [docs/IDENTIDADE_VISUAL.md](docs/IDENTIDADE_VISUAL.md) | Cores, tipografia, componentes e tom de voz |
 | [docs/fases/](docs/fases/) | Uma lista de tarefas e critérios de aceite por fase (F0 a F6) |
+| [docs/testes.html](docs/testes.html) | Asserções do gerador, relatórios e períodos (abrir pelo servidor local) |
 | [docs/CRYPTOBOT_MVP.md](docs/CRYPTOBOT_MVP.md) | Análise de um projeto anterior — só para consulta de lógica, não define regras deste |
 
 ## Andamento
@@ -86,7 +87,7 @@ No servidor do maksoud.dev a pasta precisa do `.htaccess` com `DirectoryIndex in
 | Fase | Entrega | Status |
 |---|---|---|
 | F0 | Fundação: topo, troca de visão, rotas, tema | Concluída |
-| F1 | Histórico de preços, dados fictícios e store | A fazer |
+| F1 | Histórico de preços, dados fictícios e store | Concluída |
 | F2 | Cotações ao vivo (Binance) | A fazer |
 | F3 | Visão do cliente | A fazer |
 | F4 | Motor de estratégias e alertas | A fazer |

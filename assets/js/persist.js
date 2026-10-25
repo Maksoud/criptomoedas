@@ -24,6 +24,20 @@ export function set(chave, valor) {
   }
 }
 
+/** Chaves salvas (sem o prefixo do app) que começam com `inicio`. */
+export function chaves(inicio = '') {
+  const lista = new Set([...memoria.keys()].filter((k) => k.startsWith(inicio)));
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(PREFIXO + inicio)) lista.add(k.slice(PREFIXO.length));
+    }
+  } catch {
+    /* só memória */
+  }
+  return [...lista];
+}
+
 export function remove(chave) {
   memoria.delete(chave);
   try {
