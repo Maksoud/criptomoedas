@@ -23,7 +23,7 @@ export function kpiHTML(k) {
   return `
     <article class="kpi card${k.pequeno ? ' kpi--sm' : ''}" data-kpi="${k.id}"${k.titulo ? ` title="${escapar(k.titulo)}"` : ''}>
       <p class="label kpi__label">${escapar(k.rotulo)}</p>
-      <p class="kpi__value${k.classe ? ` ${k.classe}` : ''}" data-campo="valor">${k.valor}</p>
+      <p class="kpi__value${k.classe ? ` ${k.classe}` : ''}" data-campo="valor" aria-live="polite" aria-atomic="true">${k.valor}</p>
       <p class="kpi__meta">
         <span data-campo="variacao">${variacaoHTML(k.variacao)}</span>
         <span class="kpi__extra" data-campo="extra">${escapar(k.extra ?? '')}</span>

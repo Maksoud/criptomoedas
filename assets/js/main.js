@@ -24,6 +24,7 @@ import { iniciarApuracao } from './engine/apuracao.js';
 import { iniciarRegras } from './alerts/rules.js';
 import { iniciarCentral } from './alerts/center.js';
 import { iniciarAjustes } from './data/ajustes.js';
+import { iniciarTour } from './ui/tour.js';
 
 const view = document.getElementById('view');
 const TELAS = { cliente: TELAS_CLIENTE, admin: TELAS_ADMIN };
@@ -91,6 +92,14 @@ async function iniciar() {
   iniciarApuracao();
   iniciarCentral();
   iniciarAjustes(); // depois do motor e da apuração: só grava o que muda após o carregamento
+
+  iniciarTour();
+
+  // "Pular para o conteúdo": foca o <main> sem mexer no hash (o hash é a rota).
+  document.getElementById('skip-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('app').focus();
+  });
 
   on('route:change', aoMudarRota);
   on('route:query', desenharTela);   // filtros mudados pelo endereço (voltar/avançar, link colado)

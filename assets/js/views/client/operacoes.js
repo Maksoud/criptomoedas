@@ -118,6 +118,7 @@ export function montarOperacoes(alvo, { definicao, consulta }) {
     porPagina: 20,
     compacta: true,
     rotulo: 'Ordens canceladas pelo administrador',
+    vazio: { titulo: 'Nenhuma ordem cancelada neste período' },
   });
   ref('canceladas').append(canceladas.el);
 

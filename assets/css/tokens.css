@@ -11,7 +11,7 @@
   --border: #243047;
   --text: #E6EAF2;
   --text-muted: #8A96AD;
-  --text-faint: #5B6780;
+  --text-faint: #7D89A1;
   --brand: #F5B83D;
   --brand-text: #F5B83D;
   --brand-contrast: #1A1203;
@@ -24,9 +24,9 @@
   --warn-bg: rgba(245, 158, 11, .14);
   --info: #38BDF8;
   --info-bg: rgba(56, 189, 248, .12);
-  --mode-admin: #8B7CF6;
+  --mode-admin: #A193F8;
   --mode-admin-bg: rgba(139, 124, 246, .14);
-  --on-danger: #FFFFFF;
+  --on-danger: #1A0505;
   --overlay: rgba(5, 8, 14, .6);
   --shadow: none;
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, .45);
@@ -103,6 +103,7 @@
   --z-overlay: 50;
   --z-drawer: 60;
   --z-admin-bar: 70;
+  --z-tour: 80;
 }
 
 @media (min-width: 1280px) {
@@ -119,22 +120,23 @@
     --border: #DCE2EC;
     --text: #0F172A;
     --text-muted: #55627A;
-    --text-faint: #8C97AB;
+    --text-faint: #626E83;
     --brand: #D99A1E;
-    --brand-text: #9A6A0B;
+    --brand-text: #8A5E08;
     --brand-contrast: #1A1203;
     --brand-soft: rgba(217, 154, 30, .10);
-    --up: #15803D;
+    --up: #11703A;
     --up-bg: rgba(21, 128, 61, .10);
     --down: #C81E1E;
     --down-bg: rgba(200, 30, 30, .08);
-    --warn: #B45309;
+    --warn: #9C470A;
     --warn-bg: rgba(180, 83, 9, .10);
     --info: #0369A1;
     --info-bg: rgba(3, 105, 161, .08);
     --mode-admin: #6D28D9;
     --mode-admin-bg: rgba(109, 40, 217, .08);
-    --overlay: rgba(15, 23, 42, .35);
+    --on-danger: #FFFFFF;
+  --overlay: rgba(15, 23, 42, .35);
     --shadow: 0 1px 2px rgba(15, 23, 42, .06);
     --shadow-lg: 0 12px 32px rgba(15, 23, 42, .14);
   }
@@ -149,21 +151,22 @@
   --border: #DCE2EC;
   --text: #0F172A;
   --text-muted: #55627A;
-  --text-faint: #8C97AB;
+  --text-faint: #626E83;
   --brand: #D99A1E;
-  --brand-text: #9A6A0B;
+  --brand-text: #8A5E08;
   --brand-contrast: #1A1203;
   --brand-soft: rgba(217, 154, 30, .10);
-  --up: #15803D;
+  --up: #11703A;
   --up-bg: rgba(21, 128, 61, .10);
   --down: #C81E1E;
   --down-bg: rgba(200, 30, 30, .08);
-  --warn: #B45309;
+  --warn: #9C470A;
   --warn-bg: rgba(180, 83, 9, .10);
   --info: #0369A1;
   --info-bg: rgba(3, 105, 161, .08);
   --mode-admin: #6D28D9;
   --mode-admin-bg: rgba(109, 40, 217, .08);
+  --on-danger: #FFFFFF;
   --overlay: rgba(15, 23, 42, .35);
   --shadow: 0 1px 2px rgba(15, 23, 42, .06);
   --shadow-lg: 0 12px 32px rgba(15, 23, 42, .14);

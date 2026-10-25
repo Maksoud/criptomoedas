@@ -16,7 +16,7 @@ import { kpiHTML, atualizarKpi, valorUSDT } from '../../ui/kpi.js';
 import { iniciais } from '../../ui/clientpicker.js';
 import { monograma } from '../../ui/coin.js';
 import { abrirModal } from '../../ui/modal.js';
-import { escapar, criarAgendador, trocarHTML } from '../../ui/dom.js';
+import { escapar, criarAgendador, trocarHTML, rolarAte } from '../../ui/dom.js';
 import { icon, renderIcons } from '../../ui/icons.js';
 import { usdt, pctSimples, plural, data, dataHora, intervalo } from '../../utils/format.js';
 import { somarDias, diaISO } from '../../utils/dates.js';
@@ -98,6 +98,7 @@ export function montarClientes(alvo, { definicao, consulta }) {
     chave: (c) => c.id,
     porPagina: 0,
     rotulo: 'Clientes',
+    vazio: { titulo: 'Nenhum cliente cadastrado', texto: 'Use "Restaurar dados" no Painel geral para voltar aos clientes da demonstração.' },
   });
   ref('tabela').append(tabela.el);
   tabela.el.classList.add('table--select');
@@ -462,7 +463,7 @@ export function montarClientes(alvo, { definicao, consulta }) {
       marcarSelecionado();
       desenharPainel();
     }
-    if (rolar) ref('painel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (rolar) rolarAte(ref('painel'));
   }
 
   // ---------- Ao vivo ----------

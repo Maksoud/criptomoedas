@@ -78,11 +78,13 @@
 
 .report-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--gutter);
 }
-.report-stats .stat { padding: var(--space-3) var(--space-4); }
-.report-stats .stat__value { font-size: 18px; line-height: 26px; }
+@media (min-width: 1100px) { .report-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.report-stats .stat { padding: var(--space-3) var(--space-4); min-width: 0; }
+/* O valor pode quebrar (ex.: "USDT" na linha de baixo) em vez de vazar do cartão. */
+.report-stats .stat__value { font-size: 18px; line-height: 26px; white-space: normal; overflow-wrap: anywhere; }
 .report-stats .stat__extra { white-space: normal; }
 .report-stats .stat--main { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand-soft); }
 .report-stats .stat--main .stat__value { font-size: 20px; font-weight: 600; }

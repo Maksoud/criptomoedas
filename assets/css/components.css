@@ -559,6 +559,70 @@ th.is-num .th-sort { flex-direction: row-reverse; }
 
 .table-empty .empty { padding: var(--space-6) var(--space-5); }
 
+/* Celular: cada linha vira um cartão empilhado, com o nome da coluna à esquerda (data-label). */
+@media screen and (max-width: 640px) {
+  .table-wrap { max-height: none; overflow: visible; }
+  .table, .table tbody, .table tfoot, .table tr, .table td, .table tfoot th { display: block; width: 100%; }
+  .table thead {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+  .table tbody tr,
+  .table tfoot tr {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+  .table tbody tr:last-child { border-bottom: 0; }
+  .table tfoot tr { background: var(--surface-2); border-top: 1px solid var(--border); border-bottom: 0; }
+  .table th, .table td,
+  .table--compact th, .table--compact td,
+  .table th:first-child, .table td:first-child,
+  .table th:last-child, .table td:last-child {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    height: auto;
+    min-height: 28px;
+    padding: 2px 0;
+    border: 0;
+    white-space: normal;
+    text-align: right;
+  }
+  .table td > * { min-width: 0; }
+  .table td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    max-width: 50%;
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    text-align: left;
+  }
+  .table td[data-label=""]::before { content: none; }
+  .table td[data-label=""] { justify-content: flex-end; }
+  .table td:empty { display: none; }
+  .table tfoot th, .table tfoot td { position: static; background: none; border-top: 0; }
+  .table tfoot th { justify-content: flex-start; padding-bottom: var(--space-1); }
+  .table tbody tr.is-new > td:first-child { animation: none; }
+  .table tbody tr.is-new { animation: row-new-card var(--dur-highlight) var(--ease); }
+  .table td .hist-alert { min-width: 0; text-align: right; }
+  .table td .cell-sub { text-align: right; }
+}
+@keyframes row-new-card {
+  from { background: var(--brand-soft); box-shadow: inset 3px 0 0 var(--brand); }
+  to { background: transparent; box-shadow: inset 3px 0 0 transparent; }
+}
+
+/* Linha clicável com o foco do teclado. */
+.table tbody tr[tabindex]:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: 0; }
+
 .pager {
   display: flex;
   align-items: center;
@@ -966,7 +1030,7 @@ th.is-num .th-sort { flex-direction: row-reverse; }
 .btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
 .badge--admin { background: var(--mode-admin-bg); color: var(--mode-admin); }
 .badge--strike { text-decoration: line-through; }
-.chip__count { color: var(--text-faint); font-size: 11px; }
+.chip__count { color: var(--text-muted); font-size: 11px; }
 .chip__count:empty { display: none; }
 .chips--sm .chip { height: 26px; }
 .kpi__value.warn { color: var(--warn); }
@@ -987,3 +1051,85 @@ th.is-num .th-sort { flex-direction: row-reverse; }
 .avatar--sm { width: 26px; height: 26px; font-size: 11px; }
 .avatar[data-status="pausado"] { background: var(--warn-bg); color: var(--warn); }
 .avatar[data-status="inativo"] { background: var(--surface-2); color: var(--text-faint); }
+
+
+/* ======================================================================
+   Polimento (F6): tour "Como apresentar", rodapé e atalho de teclado
+   ====================================================================== */
+
+/* ---------- Tour ---------- */
+.tour { position: fixed; inset: 0; z-index: var(--z-tour); }
+.tour[hidden] { display: none; }
+.tour__veil { position: absolute; inset: 0; }
+.tour--centro .tour__veil { background: var(--overlay); }
+.tour__spot {
+  position: fixed;
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 2px var(--brand), 0 0 0 9999px var(--overlay);
+  pointer-events: none;
+  transition: left var(--dur-open) var(--ease), top var(--dur-open) var(--ease), width var(--dur-open) var(--ease), height var(--dur-open) var(--ease);
+}
+.tour__spot[hidden] { display: none; }
+.tour__card {
+  position: fixed;
+  width: min(380px, calc(100vw - 2 * var(--space-4)));
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  transition: left var(--dur-open) var(--ease), top var(--dur-open) var(--ease);
+}
+.tour__card:focus { outline: none; }
+.tour--centro .tour__card { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.tour__head { display: flex; align-items: center; justify-content: space-between; margin-right: calc(-1 * var(--space-2)); }
+.tour__step { color: var(--brand-text); }
+.tour__title { font-size: var(--fs-h2); line-height: var(--lh-h2); }
+.tour__text { color: var(--text-muted); }
+.tour__foot { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.tour__dots { display: flex; gap: 6px; margin-right: auto; }
+.tour__dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+.tour__dots span.is-on { background: var(--brand); }
+.tour__foot .btn:disabled { opacity: .4; }
+@media (max-width: 640px) {
+  .tour__card,
+  .tour--centro .tour__card { left: var(--space-3); right: var(--space-3); bottom: var(--space-3); top: auto; width: auto; transform: none; }
+}
+@media print { .tour { display: none; } }
+
+/* ---------- Pular para o conteúdo ---------- */
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-tour);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--brand);
+  color: var(--brand-contrast);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: none; text-decoration: none; }
+
+/* ---------- Rodapé ---------- */
+.site-footer {
+  max-width: var(--content-max);
+  margin: var(--space-7) auto 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
+}
+.site-footer__links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4); }
+.site-footer__links button { color: var(--brand-text); }
+.site-footer__links button:hover { text-decoration: underline; }
+@media print { .site-footer, .skip-link { display: none; } }

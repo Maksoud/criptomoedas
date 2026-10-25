@@ -15,7 +15,7 @@ import { criarFormulario, textoValor } from '../../ui/form.js';
 import { criarGrafico, opcoesBase, comAlfa } from '../../ui/chart.js';
 import { confirmar } from '../../ui/modal.js';
 import { moedaHTML, monograma } from '../../ui/coin.js';
-import { escapar, criarAgendador, trocarHTML } from '../../ui/dom.js';
+import { escapar, criarAgendador, trocarHTML, rolarAte } from '../../ui/dom.js';
 import { icon, renderIcons } from '../../ui/icons.js';
 import { preco as fmtPreco, pctSimples, variacao, dataHora } from '../../utils/format.js';
 import { criarContexto, cabecalhoAdmin, pilulaMotor } from './comum.js';
@@ -112,6 +112,7 @@ export function montarMoedas(alvo, { definicao, consulta }) {
     chave: (m) => m.simbolo,
     porPagina: 0,
     rotulo: 'Moedas operadas',
+    vazio: { titulo: 'Nenhuma moeda no catálogo', texto: 'Use "Restaurar dados" no Painel geral para voltar às moedas da demonstração.' },
   });
   ref('tabela').append(tabela.el);
   tabela.el.classList.add('table--select');
@@ -372,14 +373,14 @@ export function montarMoedas(alvo, { definicao, consulta }) {
   function selecionar(simbolo, { rolar = false } = {}) {
     if (!estado().moedas[simbolo]) return;
     if (simbolo === selecionada) {
-      if (rolar) ref('painel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (rolar) rolarAte(ref('painel'));
       return;
     }
     selecionada = simbolo;
     gravarConsulta({ moeda: simbolo });
     marcarSelecionada();
     desenharPainel();
-    if (rolar) ref('painel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (rolar) rolarAte(ref('painel'));
   }
 
   // ---------- Ao vivo ----------

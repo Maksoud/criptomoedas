@@ -53,6 +53,7 @@ let seqOrdem = 0;
 let seqPeriodo = 0;
 let seqAlerta = 0;
 const MAX_ALERTAS = 500;
+const MAX_LOG = 500; // log de ações: só os mais recentes ficam em memória
 
 // ---------------------------------------------------------------------------
 // Básico
@@ -182,6 +183,7 @@ export function periodoAberto(clienteId) {
 export function registrarLog(texto, origem = 'admin', data = new Date()) {
   const item = { data, texto, origem };
   estado.logAdmin.push(item);
+  if (estado.logAdmin.length > MAX_LOG) estado.logAdmin.splice(0, estado.logAdmin.length - MAX_LOG);
   emit('log:new', item);
   return item;
 }

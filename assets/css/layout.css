@@ -296,6 +296,7 @@
   .topbar { padding: 0 var(--space-2); gap: var(--space-1); }
   .topbar__start { gap: var(--space-1); }
   .topbar__start .brand__name { display: none; }
+  #tour-toggle { display: none; } /* o tour continua no rodapé */
   .ticker__source { padding: 0 var(--space-3); }
   .ticker__source-text { display: none; }
   .ticker__seal { padding: 0 var(--space-3); }

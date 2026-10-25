@@ -70,3 +70,9 @@ export function criarAgendador(fn, intervalo = 0) {
     },
   };
 }
+
+/** Rola até o elemento: suave, ou direto com prefers-reduced-motion. */
+export function rolarAte(el, block = 'start') {
+  const reduzir = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el?.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block });
+}

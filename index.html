@@ -3,10 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CriptoOps — Demonstração</title>
-  <meta name="description" content="Demonstração de um painel de operações de criptomoedas feitas por um robô para vários clientes. Cotações reais, dados fictícios.">
+  <title>CriptoOps — Painel de operações cripto (demonstração)</title>
+  <meta name="description" content="Demonstração de um painel de operações de criptomoedas feitas por um robô para vários clientes: visão do cliente e do administrador, cotações reais da Binance ao vivo e dados fictícios.">
   <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0B0F17" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F5F7FB" media="(prefers-color-scheme: light)">
   <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+
+  <!-- Compartilhamento (WhatsApp, LinkedIn, Slack…): a imagem precisa de endereço absoluto. -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="maksoud.dev">
+  <meta property="og:title" content="CriptoOps — Painel de operações cripto">
+  <meta property="og:description" content="Um robô opera criptomoedas para vários clientes. Visão do cliente e do administrador, cotações reais da Binance ao vivo, dados fictícios.">
+  <meta property="og:url" content="https://maksoud.dev/criptomoedas/">
+  <meta property="og:image" content="https://maksoud.dev/criptomoedas/assets/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Visão geral do cliente no CriptoOps, com patrimônio, resultado, banca e cotações ao vivo">
+  <meta name="twitter:card" content="summary_large_image">
 
   <!-- Aplica tema, visão e menu salvos antes de pintar a página (evita piscar). -->
   <script>
@@ -39,6 +56,7 @@
   <script type="module" src="assets/js/main.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#app" id="skip-link">Pular para o conteúdo</a>
   <div class="admin-bar" aria-hidden="true"></div>
 
   <header class="topbar">
@@ -86,6 +104,9 @@
         <i data-lucide="bell" class="icon-20"></i>
         <span class="bell-count num" id="alerts-count" hidden>0</span>
       </button>
+      <button class="icon-btn" id="tour-toggle" type="button" data-abrir-tour aria-label="Como apresentar: tour rápido" title="Como apresentar: tour rápido">
+        <i data-lucide="presentation" class="icon-20"></i>
+      </button>
       <button class="icon-btn" id="theme-toggle" type="button"></button>
     </div>
   </header>
@@ -125,6 +146,14 @@
   <main id="app" class="content" tabindex="-1">
     <div id="avisos" class="notices"></div>
     <div id="view"></div>
+    <footer class="site-footer">
+      <p>Cotações: Binance (dados públicos). Operações, clientes e valores são fictícios.</p>
+      <p class="site-footer__links">
+        <button type="button" data-abrir-tour>Como apresentar</button>
+        <a href="https://github.com/Maksoud/criptomoedas" rel="noopener">Código no GitHub</a>
+        <a href="https://maksoud.dev/projetos/">maksoud.dev</a>
+      </p>
+    </footer>
   </main>
 
   <aside class="panel" id="alerts-panel" aria-label="Central de alertas" aria-hidden="true">

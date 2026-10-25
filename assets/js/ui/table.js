@@ -10,6 +10,13 @@ import { icon, renderIcons } from './icons.js';
 
 let seq = 0;
 
+/** Rótulo em texto puro da coluna (vai no data-label do cartão do celular). Título só para leitor de tela → vazio. */
+function rotuloDe(c) {
+  if (c.rotulo != null) return c.rotulo;
+  const t = String(c.titulo ?? '').replace(/<span class="sr-only">.*?<\/span>/g, '').replace(/<[^>]+>/g, '').trim();
+  return t;
+}
+
 function comparar(a, b) {
   const nuloA = a == null || Number.isNaN(a);
   const nuloB = b == null || Number.isNaN(b);
@@ -36,6 +43,7 @@ export function criarTabela({
   let pagina = 0;
   let ordenacao = ordem ? { ...ordem } : null;
   const porChave = new Map();
+  const rotulos = new Map(colunas.map((c) => [c.id, escapar(rotuloDe(c))]));
 
   const el = document.createElement('div');
   el.className = 'table-card card';
@@ -87,11 +95,12 @@ export function criarTabela({
   function celula(c, l) {
     const extra = c.classe ? c.classe(l) : '';
     const classes = [c.num ? 'is-num num' : '', extra].filter(Boolean).join(' ');
-    return `<td data-col="${c.id}"${classes ? ` class="${classes}"` : ''}>${c.html(l)}</td>`;
+    return `<td data-col="${c.id}" data-label="${rotulos.get(c.id)}"${classes ? ` class="${classes}"` : ''}>${c.html(l)}</td>`;
   }
 
   function linhaHTML(l, nova = false) {
-    return `<tr data-chave="${escapar(chave(l))}"${nova ? ' class="is-new"' : ''}>${colunas.map((c) => celula(c, l)).join('')}</tr>`;
+    const foco = aoClicarLinha ? ' tabindex="0"' : '';
+    return `<tr data-chave="${escapar(chave(l))}"${nova ? ' class="is-new"' : ''}${foco}>${colunas.map((c) => celula(c, l)).join('')}</tr>`;
   }
 
   function totalPaginas() {
@@ -126,6 +135,14 @@ export function criarTabela({
 
   function desenharRodape() {
     tfoot.innerHTML = rodape && linhas.length ? rodape(linhas) : '';
+    // Rótulos das células do total para o cartão do celular, pela coluna em que cada uma começa.
+    for (const tr of tfoot.rows) {
+      let i = 0;
+      for (const cel of tr.cells) {
+        if (cel.tagName === 'TD' && !cel.hasAttribute('data-label')) cel.dataset.label = rotuloDe(colunas[i] ?? {});
+        i += cel.colSpan || 1;
+      }
+    }
   }
 
   function desenhar() {
@@ -174,8 +191,21 @@ export function criarTabela({
     }
   });
 
+  // Linha clicável também abre pelo teclado (Enter ou espaço com o foco na linha).
+  if (aoClicarLinha) {
+    tbody.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const tr = e.target;
+      if (tr.tagName !== 'TR') return;
+      const l = porChave.get(tr.dataset.chave);
+      if (!l) return;
+      e.preventDefault();
+      aoClicarLinha(l, e);
+    });
+  }
+
   tbody.addEventListener('animationend', (e) => {
-    if (e.animationName === 'row-new') e.target.closest('tr')?.classList.remove('is-new');
+    if (e.animationName === 'row-new' || e.animationName === 'row-new-card') e.target.closest('tr')?.classList.remove('is-new');
   });
 
   return {

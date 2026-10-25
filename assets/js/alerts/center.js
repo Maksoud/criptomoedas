@@ -184,7 +184,9 @@ function tomDoToast(a) {
 
 function mostrarToast(a) {
   const area = $('toasts');
-  while (area.children.length >= MAX_TOASTS) area.firstElementChild.remove();
+  // No celular só um aviso por vez, para não cobrir a tela.
+  const maximo = window.matchMedia('(max-width: 640px)').matches ? 1 : MAX_TOASTS;
+  while (area.children.length >= maximo) area.firstElementChild.remove();
   const el = document.createElement('div');
   el.className = 'toast';
   el.dataset.tom = tomDoToast(a);

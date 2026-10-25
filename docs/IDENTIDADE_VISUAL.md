@@ -29,7 +29,7 @@ Evitar: visual de cassino/aposta, neon exagerado, gradientes chamativos, foguete
 | `--border` | `#243047` | Bordas e divisórias |
 | `--text` | `#E6EAF2` | Texto principal |
 | `--text-muted` | `#8A96AD` | Rótulos, legendas |
-| `--text-faint` | `#5B6780` | Texto desabilitado, eixos de gráfico |
+| `--text-faint` | `#7D89A1` | Texto secundário fraco, eixos de gráfico (contraste AA) |
 | `--brand` | `#F5B83D` | Marca, ação primária, item ativo do menu |
 | `--brand-contrast` | `#1A1203` | Texto sobre `--brand` |
 | `--up` | `#22C55E` | Alta, compra, lucro |
@@ -38,7 +38,7 @@ Evitar: visual de cassino/aposta, neon exagerado, gradientes chamativos, foguete
 | `--down-bg` | `rgba(240,82,82,.12)` | Fundo de badge/flash de baixa |
 | `--warn` | `#F59E0B` | Avisos, "compras travadas" |
 | `--info` | `#38BDF8` | Ordens programadas, informações |
-| `--mode-admin` | `#8B7CF6` | Faixa e destaques exclusivos da visão Administrador |
+| `--mode-admin` | `#A193F8` | Faixa e destaques exclusivos da visão Administrador |
 
 ### 3.2 Tema claro
 
@@ -50,12 +50,12 @@ Evitar: visual de cassino/aposta, neon exagerado, gradientes chamativos, foguete
 | `--border` | `#DCE2EC` |
 | `--text` | `#0F172A` |
 | `--text-muted` | `#55627A` |
-| `--text-faint` | `#8C97AB` |
-| `--brand` | `#D99A1E` (fundos) · `#9A6A0B` (texto/links) |
+| `--text-faint` | `#626E83` |
+| `--brand` | `#D99A1E` (fundos) · `#8A5E08` (texto/links) |
 | `--brand-contrast` | `#1A1203` |
-| `--up` | `#15803D` |
+| `--up` | `#11703A` |
 | `--down` | `#C81E1E` |
-| `--warn` | `#B45309` |
+| `--warn` | `#9C470A` |
 | `--info` | `#0369A1` |
 | `--mode-admin` | `#6D28D9` |
 
@@ -122,7 +122,7 @@ Usar o sinal de menos tipográfico (`−`), não o hífen.
 | **Estado do motor** | Pílula pequena ao lado da moeda: "Aguardando", "Armado", "Rastreando topo", "Canal confirmado", "Aguardando confirmação 1/2" — cor `--info`; travado em `--warn` com cadeado. |
 | **Formulário de parâmetros** | Rótulo + campo numérico com sufixo (%, USDT, velas) + texto de ajuda `--text-muted` abaixo; valor diferente do perfil mostra ponto âmbar e "Restaurar". |
 | **KPI card** | Rótulo (legenda), valor display, variação com seta, minigráfico opcional de 32 px de altura. Padding 16 px. |
-| **Botões** | Primário: fundo `--brand`, texto `--brand-contrast`. Secundário: borda `--border`, texto `--text`. Perigo: fundo `--down`, texto branco. Altura 36 px (32 px compacto). Ícone à esquerda 16 px. |
+| **Botões** | Primário: fundo `--brand`, texto `--brand-contrast`. Secundário: borda `--border`, texto `--text`. Perigo: fundo `--down`, texto `--on-danger` (escuro no tema escuro, branco no claro, para o contraste AA). Altura 36 px (32 px compacto). Ícone à esquerda 16 px. |
 | **Badges** | Altura 20 px, raio sm, peso 500, 12 px. Status: `ativo` (up), `pausado` (warn), `inativo` (faint), `programada` (info), `cancelada` (faint riscado), `sem alvo` (warn). Comissões: `aberto` (info), `apurado` (warn), `pago` (up), `vencido` (down). |
 | **Chips de filtro** | Altura 28 px, raio total, monograma à esquerda. Selecionado: borda e texto `--brand`. |
 | **Tabelas** | Cabeçalho 12 px maiúsculo `--text-muted`, linhas de 40 px (32 px compacto), divisórias `--border`, hover `--surface-2`. **Linha nova**: fundo `--brand` a 10% desvanecendo em 2 s + pequena barra âmbar à esquerda. |
