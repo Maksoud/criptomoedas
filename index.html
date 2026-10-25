@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CriptoOps — Demonstração</title>
+  <meta name="description" content="Demonstração de um painel de operações de criptomoedas feitas por um robô para vários clientes. Cotações reais, dados fictícios.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+
+  <!-- Aplica tema, visão e menu salvos antes de pintar a página (evita piscar). -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+      function ler(chave) {
+        try { return JSON.parse(localStorage.getItem('criptoops:' + chave)); } catch (e) { return null; }
+      }
+      var tema = ler('tema');
+      if (tema === 'light' || tema === 'dark') root.dataset.theme = tema;
+      var m = /^#\/(cliente|admin)\//.exec(location.hash);
+      root.dataset.view = m ? m[1] : (ler('visao') === 'admin' ? 'admin' : 'cliente');
+      if (ler('menuRecolhido') === true) root.dataset.sidebar = 'collapsed';
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/layout.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/print.css">
+
+  <script defer src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script type="module" src="assets/js/main.js"></script>
+</head>
+<body>
+  <div class="admin-bar" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="topbar__start">
+      <button class="icon-btn menu-btn" id="menu-toggle" type="button" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">
+        <i data-lucide="menu" class="icon-20"></i>
+      </button>
+      <a class="brand" href="#/" aria-label="CriptoOps — início">
+        <svg class="brand__mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 6.5 12 3 4.5 8.5"/><path d="M4.5 15.5 12 21l7-3.5"/><path d="M4.5 8.5v7" opacity=".45"/>
+        </svg>
+        <span class="brand__name"><b>Cripto</b>Ops</span>
+      </a>
+      <span class="badge badge--demo" title="Demonstração — dados fictícios">DEMO</span>
+    </div>
+
+    <div class="topbar__center">
+      <div class="segmented" id="view-switch" role="radiogroup" aria-label="Visão">
+        <button class="segmented__opt" type="button" role="radio" data-view="cliente" aria-checked="false" aria-label="Cliente">
+          <i data-lucide="user" class="icon"></i><span class="segmented__text">Cliente</span>
+        </button>
+        <button class="segmented__opt" type="button" role="radio" data-view="admin" aria-checked="false" aria-label="Administrador">
+          <i data-lucide="shield" class="icon"></i><span class="segmented__text">Administrador</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="topbar__end">
+      <button class="robot-btn" id="robot-toggle" type="button" aria-pressed="true"></button>
+      <button class="icon-btn" id="alerts-toggle" type="button" aria-label="Alertas" aria-controls="alerts-panel" aria-expanded="false">
+        <i data-lucide="bell" class="icon-20"></i>
+        <span class="bell-count num" id="alerts-count" hidden>0</span>
+      </button>
+      <button class="icon-btn" id="theme-toggle" type="button"></button>
+    </div>
+  </header>
+
+  <div class="ticker" role="region" aria-label="Cotações">
+    <div class="ticker__source" id="quote-source" title="Origem das cotações">
+      <span class="source-dot" data-state="idle"></span>
+      <span class="ticker__source-text">Aguardando cotações</span>
+    </div>
+    <ul class="ticker__list" id="ticker-list" aria-live="off"></ul>
+    <span class="ticker__seal">
+      <span class="ticker__seal-full">Demonstração — dados fictícios</span>
+      <span class="ticker__seal-short">Dados fictícios</span>
+    </span>
+  </div>
+
+  <aside class="sidebar" id="sidebar" aria-label="Menu">
+    <div class="sidebar__head">
+      <span class="brand"><span class="brand__name"><b>Cripto</b>Ops</span></span>
+      <button class="icon-btn" id="menu-close" type="button" aria-label="Fechar menu">
+        <i data-lucide="x" class="icon-20"></i>
+      </button>
+    </div>
+    <p class="sidebar__view label" id="sidebar-view"></p>
+    <nav class="sidebar__nav"><ul id="nav"></ul></nav>
+    <div class="sidebar__foot">
+      <button class="collapse-btn" id="sidebar-collapse" type="button" aria-label="Recolher menu">
+        <i data-lucide="chevrons-left" class="icon"></i><span class="collapse-btn__text">Recolher menu</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="scrim" id="scrim"></div>
+
+  <main id="app" class="content" tabindex="-1"></main>
+
+  <aside class="panel" id="alerts-panel" aria-label="Central de alertas" aria-hidden="true">
+    <div class="panel__head">
+      <h2>Alertas</h2>
+      <button class="icon-btn" id="alerts-close" type="button" aria-label="Fechar alertas">
+        <i data-lucide="x" class="icon-20"></i>
+      </button>
+    </div>
+    <div class="panel__body">
+      <div class="empty">
+        <span class="empty__icon"><i data-lucide="bell" class="icon"></i></span>
+        <p class="empty__title">Nenhum alerta por enquanto</p>
+        <p class="empty__text">Quando o robô começar a operar, os avisos de compra, venda e risco aparecem aqui.</p>
+      </div>
+    </div>
+  </aside>
+</body>
+</html>

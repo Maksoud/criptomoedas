@@ -85,7 +85,7 @@ No servidor do maksoud.dev a pasta precisa do `.htaccess` com `DirectoryIndex in
 
 | Fase | Entrega | Status |
 |---|---|---|
-| F0 | Fundação: topo, troca de visão, rotas, tema | A fazer |
+| F0 | Fundação: topo, troca de visão, rotas, tema | Concluída |
 | F1 | Histórico de preços, dados fictícios e store | A fazer |
 | F2 | Cotações ao vivo (Binance) | A fazer |
 | F3 | Visão do cliente | A fazer |

@@ -1,0 +1,20 @@
+/* Impressão do relatório (detalhada na F3). Por ora, esconde a moldura da página. */
+@media print {
+  :root {
+    color-scheme: light;
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-2: #F1F5F9;
+    --border: #DCE2EC;
+    --text: #0F172A;
+    --text-muted: #55627A;
+    --up: #15803D;
+    --down: #C81E1E;
+  }
+
+  @page { size: A4 portrait; margin: 16mm; }
+
+  .admin-bar, .topbar, .ticker, .sidebar, .scrim, .panel { display: none !important; }
+  .content { margin: 0 !important; padding: 0 !important; }
+  .card { box-shadow: none; }
+}

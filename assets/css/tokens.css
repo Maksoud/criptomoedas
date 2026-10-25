@@ -1,0 +1,161 @@
+/* Tokens da identidade visual (docs/IDENTIDADE_VISUAL.md).
+   Nenhuma cor ou tamanho deve ser escrito direto nos componentes. */
+
+:root {
+  color-scheme: dark;
+
+  /* Cores — tema escuro (padrão) */
+  --bg: #0B0F17;
+  --surface: #121826;
+  --surface-2: #1A2233;
+  --border: #243047;
+  --text: #E6EAF2;
+  --text-muted: #8A96AD;
+  --text-faint: #5B6780;
+  --brand: #F5B83D;
+  --brand-text: #F5B83D;
+  --brand-contrast: #1A1203;
+  --brand-soft: rgba(245, 184, 61, .10);
+  --up: #22C55E;
+  --up-bg: rgba(34, 197, 94, .12);
+  --down: #F05252;
+  --down-bg: rgba(240, 82, 82, .12);
+  --warn: #F59E0B;
+  --warn-bg: rgba(245, 158, 11, .14);
+  --info: #38BDF8;
+  --info-bg: rgba(56, 189, 248, .12);
+  --mode-admin: #8B7CF6;
+  --mode-admin-bg: rgba(139, 124, 246, .14);
+  --on-danger: #FFFFFF;
+  --overlay: rgba(5, 8, 14, .6);
+  --shadow: none;
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, .45);
+
+  /* Paleta de gráficos (séries categóricas) */
+  --chart-1: #F5B83D;
+  --chart-2: #38BDF8;
+  --chart-3: #A78BFA;
+  --chart-4: #34D399;
+  --chart-5: #F472B6;
+  --chart-6: #FB923C;
+  --chart-7: #94A3B8;
+
+  /* Tipografia */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --fs-display: 28px;  --lh-display: 34px;
+  --fs-h1: 22px;       --lh-h1: 28px;
+  --fs-h2: 16px;       --lh-h2: 24px;
+  --fs-body: 14px;     --lh-body: 20px;
+  --fs-label: 12px;    --lh-label: 16px;
+  --fs-num: 13px;      --lh-num: 20px;
+  --tracking-label: .04em;
+  --tracking-logo: -.01em;
+
+  /* Espaçamento (base 4 px) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Forma */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* Layout */
+  --topbar-h: 56px;
+  --ticker-h: 36px;
+  --chrome-h: calc(var(--topbar-h) + var(--ticker-h));
+  --sidebar-w: 232px;
+  --sidebar-w-collapsed: 64px;
+  --content-max: 1440px;
+  --gutter: 16px;
+  --page-margin: 16px;
+  --admin-bar-h: 3px;
+  --panel-w: 360px;
+  --control-h: 36px;
+  --control-h-sm: 32px;
+
+  /* Movimento */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --dur-hover: 120ms;
+  --dur-open: 200ms;
+  --dur-flash: 600ms;
+  --dur-highlight: 2s;
+
+  /* Camadas */
+  --z-sidebar: 30;
+  --z-topbar: 40;
+  --z-overlay: 50;
+  --z-drawer: 60;
+  --z-admin-bar: 70;
+}
+
+@media (min-width: 1280px) {
+  :root { --gutter: 24px; --page-margin: 24px; }
+}
+
+/* Tema claro: segue o sistema quando não há escolha salva… */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #F5F7FB;
+    --surface: #FFFFFF;
+    --surface-2: #EEF1F7;
+    --border: #DCE2EC;
+    --text: #0F172A;
+    --text-muted: #55627A;
+    --text-faint: #8C97AB;
+    --brand: #D99A1E;
+    --brand-text: #9A6A0B;
+    --brand-contrast: #1A1203;
+    --brand-soft: rgba(217, 154, 30, .10);
+    --up: #15803D;
+    --up-bg: rgba(21, 128, 61, .10);
+    --down: #C81E1E;
+    --down-bg: rgba(200, 30, 30, .08);
+    --warn: #B45309;
+    --warn-bg: rgba(180, 83, 9, .10);
+    --info: #0369A1;
+    --info-bg: rgba(3, 105, 161, .08);
+    --mode-admin: #6D28D9;
+    --mode-admin-bg: rgba(109, 40, 217, .08);
+    --overlay: rgba(15, 23, 42, .35);
+    --shadow: 0 1px 2px rgba(15, 23, 42, .06);
+    --shadow-lg: 0 12px 32px rgba(15, 23, 42, .14);
+  }
+}
+
+/* …ou quando o usuário escolhe o tema claro. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F5F7FB;
+  --surface: #FFFFFF;
+  --surface-2: #EEF1F7;
+  --border: #DCE2EC;
+  --text: #0F172A;
+  --text-muted: #55627A;
+  --text-faint: #8C97AB;
+  --brand: #D99A1E;
+  --brand-text: #9A6A0B;
+  --brand-contrast: #1A1203;
+  --brand-soft: rgba(217, 154, 30, .10);
+  --up: #15803D;
+  --up-bg: rgba(21, 128, 61, .10);
+  --down: #C81E1E;
+  --down-bg: rgba(200, 30, 30, .08);
+  --warn: #B45309;
+  --warn-bg: rgba(180, 83, 9, .10);
+  --info: #0369A1;
+  --info-bg: rgba(3, 105, 161, .08);
+  --mode-admin: #6D28D9;
+  --mode-admin-bg: rgba(109, 40, 217, .08);
+  --overlay: rgba(15, 23, 42, .35);
+  --shadow: 0 1px 2px rgba(15, 23, 42, .06);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, .14);
+}
